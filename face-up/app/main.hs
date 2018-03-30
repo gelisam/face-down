@@ -3,7 +3,8 @@ import Codec.FFmpeg
 import Codec.Picture
 import Control.Exception
 import Control.Lens
-import Graphics.Gloss
+import Data.Maybe
+import Graphics.Gloss.Interface.IO.Animate
 import Graphics.Gloss.Juicy
 import Options.Generic
 
@@ -29,15 +30,24 @@ withVideo filePath = bracket acquire release
     release :: Video -> IO ()
     release = videoCleanup
 
+
+defaultImage :: Image PixelRGB8
+defaultImage = generateImage (\_ _ -> PixelRGB8 0 0 0) 640 480
+
+playVideo :: String -> Video -> IO ()
+playVideo windowTitle video = do
+  firstFrame <- fromMaybe defaultImage <$> videoNextFrame video
+
+  let nextFrame :: Float -> IO Picture
+      nextFrame _ = maybe mempty fromImageRGB8 <$> videoNextFrame video
+
+  animateFixedIO (InWindow windowTitle (imageWidth firstFrame, imageHeight firstFrame) (10, 10))
+                 black
+                 nextFrame
+                 mempty
+
 main :: IO ()
 main = do
   initFFmpeg
   filePath <- getRecord "face-up"
-  withVideo filePath $ \video -> do
-    videoNextFrame video >>= \case
-      Nothing -> putStrLn "empty video."
-      Just image -> do
-        let picture = fromImageRGB8 image
-        display (InWindow "Nice Window" (imageWidth image, imageHeight image) (10, 10))
-                white
-                picture
+  withVideo filePath (playVideo filePath)
