@@ -1,0 +1,11 @@
+name: face-up
+
+dependencies:
+- base
+- ffmpeg-light
+
+ghc-options:
+  - -Wall
+
+library:
+  source-dirs: src
