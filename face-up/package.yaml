@@ -14,3 +14,5 @@ executables:
   face-up:
     main: main.hs
     source-dirs: app
+    dependencies:
+      - optparse-generic

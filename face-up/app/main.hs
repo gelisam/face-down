@@ -1,2 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
+import Options.Generic
+
 main :: IO ()
-main = putStrLn "typechecks."
+main = do
+  filePath <- getRecord "face-up"
+  putStrLn $ filePath ++ ": unsupported file format"
