@@ -1,8 +1,12 @@
 name: face-up
 
 dependencies:
+  - JuicyPixels
   - base
   - ffmpeg-light
+  - gloss
+  - gloss-juicy
+  - lens
 
 ghc-options:
   - -Wall
@@ -15,8 +19,5 @@ executables:
     main: main.hs
     source-dirs: app
     dependencies:
-      - JuicyPixels
-      - gloss
-      - gloss-juicy
-      - lens
+      - face-up
       - optparse-generic
