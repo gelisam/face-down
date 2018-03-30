@@ -9,3 +9,8 @@ ghc-options:
 
 library:
   source-dirs: src
+
+executables:
+  face-up:
+    main: main.hs
+    source-dirs: app
