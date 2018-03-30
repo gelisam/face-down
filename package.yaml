@@ -1,0 +1,10 @@
+name: face-down
+
+dependencies:
+- base
+
+ghc-options:
+  - -Wall
+
+library:
+  source-dirs: src
