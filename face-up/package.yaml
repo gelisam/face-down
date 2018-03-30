@@ -15,4 +15,7 @@ executables:
     main: main.hs
     source-dirs: app
     dependencies:
+      - JuicyPixels
+      - gloss
+      - gloss-juicy
       - optparse-generic
