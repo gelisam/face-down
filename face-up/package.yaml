@@ -18,4 +18,5 @@ executables:
       - JuicyPixels
       - gloss
       - gloss-juicy
+      - lens
       - optparse-generic

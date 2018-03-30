@@ -2,14 +2,18 @@
 import Codec.FFmpeg
 import Codec.Picture
 import Control.Exception
+import Control.Lens
 import Graphics.Gloss
 import Graphics.Gloss.Juicy
 import Options.Generic
 
 data Video = Video
-  { videoNextFrame :: IO (Maybe (Image PixelRGB8))
-  , videoCleanup   :: IO ()
+  { videoNextFrameTime :: IO (Maybe (Image PixelRGB8, Double))
+  , videoCleanup       :: IO ()
   }
+
+videoNextFrame :: Video -> IO (Maybe (Image PixelRGB8))
+videoNextFrame video = over _Just fst <$> videoNextFrameTime video
 
 withVideo :: FilePath
           -> (Video -> IO a)
@@ -18,7 +22,7 @@ withVideo filePath = bracket acquire release
   where
     acquire :: IO Video
     acquire = fmap (uncurry Video)
-            . imageReader
+            . imageReaderTime
             . File
             $ filePath
 
