@@ -1,8 +1,8 @@
 name: face-up
 
 dependencies:
-- base
-- ffmpeg-light
+  - base
+  - ffmpeg-light
 
 ghc-options:
   - -Wall
