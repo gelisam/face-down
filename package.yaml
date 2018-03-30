@@ -2,6 +2,7 @@ name: face-down
 
 dependencies:
 - base
+- ffmpeg-light
 
 ghc-options:
   - -Wall
