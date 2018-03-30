@@ -1,48 +1,76 @@
+{-# LANGUAGE RecordWildCards #-}
 module FaceUp.Video where
 
-import Codec.FFmpeg
-import Codec.Picture
 import Control.Exception
-import Control.Lens
+import Data.IORef
 import Data.Maybe
 import Graphics.Gloss.Interface.IO.Animate
-import Graphics.Gloss.Juicy
+
+import FaceUp.Frame
+import FaceUp.VideoStream
+
+
+data VideoState = VideoState
+  { videoStateStream      :: VideoStream
+  , videoStateFrameNumber :: Int
+  }
+
+-- | Must be released with 'videoStateClose'
+videoStateOpen :: FilePath -> IO VideoState
+videoStateOpen filePath = do
+  videoStream <- videoStreamOpen filePath
+  pure $ VideoState videoStream 0
+
+videoStateClose :: VideoState -> IO ()
+videoStateClose = videoStreamClose . videoStateStream
 
 
 data Video = Video
-  { videoNextFrameTime :: IO (Maybe (Image PixelRGB8, Double))
-  , videoCleanup       :: IO ()
+  { videoFilePath :: FilePath
+  , videoStateRef :: IORef VideoState
   }
 
-videoNextFrame :: Video -> IO (Maybe (Image PixelRGB8))
-videoNextFrame video = over _Just fst <$> videoNextFrameTime video
+-- | Must be released with 'videoClose'
+videoOpen :: FilePath -> IO Video
+videoOpen filePath = do
+  videoState <- videoStateOpen filePath
+  ref <- newIORef videoState
+  pure $ Video filePath ref
 
-withVideo :: FilePath
-          -> (Video -> IO a)
-          -> IO a
-withVideo filePath = bracket acquire release
-  where
-    acquire :: IO Video
-    acquire = fmap (uncurry Video)
-            . imageReaderTime
-            . File
-            $ filePath
+videoClose :: Video -> IO ()
+videoClose video = do
+  videoState <- readIORef (videoStateRef video)
+  videoStateClose videoState
 
-    release :: Video -> IO ()
-    release = videoCleanup
+videoReset :: Video -> IO ()
+videoReset video = do
+  videoState <- readIORef (videoStateRef video)
+  videoStateClose videoState
+
+  videoState' <- videoStateOpen (videoFilePath video)
+  writeIORef (videoStateRef video) videoState'
+
+withVideo :: FilePath -> (Video -> IO a) -> IO a
+withVideo filePath = bracket (videoOpen filePath) videoClose
 
 
-defaultImage :: Image PixelRGB8
-defaultImage = generateImage (\_ _ -> PixelRGB8 0 0 0) 640 480
+videoNextFrame :: Video -> IO (Maybe Frame)
+videoNextFrame video = do
+  videoState <- readIORef (videoStateRef video)
+  videoStreamNextFrame (videoStateStream videoState)
+
+videoGetFrameNumber :: Video -> IO Int
+videoGetFrameNumber = fmap videoStateFrameNumber . readIORef . videoStateRef
+
 
 playVideo :: String -> Video -> IO ()
 playVideo windowTitle video = do
-  firstFrame <- fromMaybe defaultImage <$> videoNextFrame video
+  firstFrame <- fromMaybe defaultFrame <$> videoNextFrame video
 
   let nextFrame :: Float -> IO Picture
-      nextFrame _ = maybe mempty fromImageRGB8 <$> videoNextFrame video
+      nextFrame _ = maybe mempty framePicture <$> videoNextFrame video
 
-  animateFixedIO (InWindow windowTitle (imageWidth firstFrame, imageHeight firstFrame) (10, 10))
+  animateFixedIO (InWindow windowTitle (frameWidth firstFrame, frameHeight firstFrame) (10, 10))
                  black
                  nextFrame
                  mempty
