@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceUp.Video where
 
 import Prelude
@@ -17,6 +17,7 @@ import FaceUp.VideoStream
 data VideoState = VideoState
   { _videoStateStream      :: VideoStream
   , _videoStateFrameNumber :: Int
+  , _videoStateTimestamp   :: Double  -- seconds
   }
 
 makeLenses ''VideoState
@@ -25,7 +26,7 @@ makeLenses ''VideoState
 videoStateOpen :: FilePath -> IO VideoState
 videoStateOpen filePath = do
   videoStream <- videoStreamOpen filePath
-  pure $ VideoState videoStream 0
+  pure $ VideoState videoStream 0 0
 
 videoStateClose :: VideoState -> IO ()
 videoStateClose = videoStreamClose . view videoStateStream
@@ -63,26 +64,54 @@ withVideo filePath = bracket (videoOpen filePath) videoClose
 videoNextFrame :: Video -> IO (Maybe Frame)
 videoNextFrame video = do
   videoState <- readIORef (videoStateRef video)
-  frame <- videoStreamNextFrame (view videoStateStream videoState)
-  let videoState' = videoState
-                  & videoStateFrameNumber +~ 1
-  writeIORef (videoStateRef video) videoState'
-  pure frame
+  videoStreamNextFrameTime (view videoStateStream videoState) >>= \case
+    Nothing -> pure Nothing
+    Just (frame, timestamp) -> do
+      let videoState' = videoState
+                      & videoStateFrameNumber +~ 1
+                      & videoStateTimestamp   .~ timestamp
+      writeIORef (videoStateRef video) videoState'
+      pure . Just $ frame
 
 videoCurrentFrameNumber :: Video -> IO Int
 videoCurrentFrameNumber = fmap (view videoStateFrameNumber) . readIORef . videoStateRef
 
+videoCurrentTimestamp :: Video -> IO Double
+videoCurrentTimestamp = fmap (view videoStateTimestamp) . readIORef . videoStateRef
+
 videoGetFrame :: Video -> Int -> IO (Maybe Frame)
-videoGetFrame video frameNumber | frameNumber < 1 = pure Nothing
-                                | otherwise       = do
+videoGetFrame video frameNumber = do
   maybeFrame <- videoNextFrame video
   currentFrameNumber <- videoCurrentFrameNumber video
   case maybeFrame of
     Just _  | currentFrameNumber <  frameNumber -> videoGetFrame video frameNumber
     Nothing | currentFrameNumber <  frameNumber -> pure Nothing
     _       | currentFrameNumber == frameNumber -> pure maybeFrame
-    _                         {- > -}           -> do videoReset video
-                                                      videoGetFrame video frameNumber
+    _                         {- > -}           -> do
+      videoReset video
+      maybeFirstFrame <- videoNextFrame video
+      firstFrameNumber <- videoCurrentFrameNumber video
+      if frameNumber <= firstFrameNumber
+      then pure maybeFirstFrame
+      else videoGetFrame video frameNumber
+
+videoGetFrameAtTimestamp :: Video -> Double -> IO (Maybe Frame)
+videoGetFrameAtTimestamp video timestamp = do
+  previousTimestamp <- videoCurrentTimestamp video
+  maybeFrame <- videoNextFrame video
+  currentTimestamp <- videoCurrentTimestamp video
+  case maybeFrame of
+    Just _  | currentTimestamp < timestamp -> videoGetFrameAtTimestamp video timestamp
+    Nothing | currentTimestamp < timestamp -> pure Nothing
+    _       | previousTimestamp < timestamp
+           && timestamp <= currentTimestamp -> pure maybeFrame
+    _                                       -> do
+      videoReset video
+      maybeFirstFrame <- videoNextFrame video
+      firstTimestamp <- videoCurrentTimestamp video
+      if timestamp <= firstTimestamp
+      then pure maybeFirstFrame
+      else videoGetFrameAtTimestamp video timestamp
 
 
 videoPlayer :: String -> Video -> IO ()
@@ -94,19 +123,19 @@ videoPlayer windowTitle video = do
                          (frameWidth firstFrame, frameHeight firstFrame)
                          (10, 10)
 
-      draw :: Int -> IO Picture
-      draw = videoGetFrame video
+      draw :: Double -> IO Picture
+      draw = videoGetFrameAtTimestamp video
          >&> fromMaybe defaultFrame
          >&> framePicture
 
-      react :: Event -> Int -> IO Int
-      react (EventKey (Char 'q') _ _ _) _           = exitSuccess
-      react (EventKey (Char 'r') _ _ _) _           = pure 0
-      react _                           frameNumber = pure frameNumber
+      react :: Event -> Double -> IO Double
+      react (EventKey (Char 'q') _ _ _) _         = exitSuccess
+      react (EventKey (Char 'r') _ _ _) _         = pure 0
+      react _                           timestamp = pure timestamp
 
-      update :: Float -> Int -> IO Int
-      update _ = (+1)
-             >>> pure
+      update :: Float -> Double -> IO Double
+      update dt = (+ realToFrac dt)
+              >>> pure
 
   playIO display
          black
