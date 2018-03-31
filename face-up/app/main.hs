@@ -9,4 +9,4 @@ main :: IO ()
 main = do
   initFFmpeg
   filePath <- getRecord "face-up"
-  withVideo filePath (playVideo filePath)
+  withVideo filePath (videoPlayer filePath)

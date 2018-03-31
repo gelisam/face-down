@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module FaceUp.VideoStream where
 
 import Codec.FFmpeg
