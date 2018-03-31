@@ -79,7 +79,7 @@ videoGetFrame video frameNumber | frameNumber < 1 = pure Nothing
   currentFrameNumber <- videoCurrentFrameNumber video
   case maybeFrame of
     Just _  | currentFrameNumber <  frameNumber -> videoGetFrame video frameNumber
-    Nothing | currentFrameNumber <  frameNumber -> videoGetFrame video frameNumber
+    Nothing | currentFrameNumber <  frameNumber -> pure Nothing
     _       | currentFrameNumber == frameNumber -> pure maybeFrame
     _                         {- > -}           -> do videoReset video
                                                       videoGetFrame video frameNumber
