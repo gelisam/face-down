@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module FaceUp.VideoStream where
+module FaceTrace.VideoStream where
 
 import Codec.FFmpeg
 import Control.Exception
@@ -7,7 +7,7 @@ import Control.Lens
 import Data.Maybe
 import Graphics.Gloss.Interface.IO.Animate
 
-import FaceUp.Frame
+import FaceTrace.Frame
 
 
 data VideoStream = VideoStream

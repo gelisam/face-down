@@ -1,4 +1,4 @@
-module FaceUp.Frame where
+module FaceTrace.Frame where
 
 import Codec.Picture
 import Graphics.Gloss.Interface.IO.Animate

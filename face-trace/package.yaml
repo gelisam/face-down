@@ -1,8 +1,12 @@
-name: face-up
+name: face-trace
 
 dependencies:
+  - JuicyPixels
   - base
   - ffmpeg-light
+  - gloss
+  - gloss-juicy
+  - lens
 
 ghc-options:
   - -Wall
@@ -11,6 +15,9 @@ library:
   source-dirs: src
 
 executables:
-  face-down:
+  face-trace:
     main: main.hs
     source-dirs: app
+    dependencies:
+      - face-trace
+      - optparse-generic

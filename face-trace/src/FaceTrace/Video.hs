@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
-module FaceUp.Video where
+module FaceTrace.Video where
 
 import Prelude
 import Control.Exception
@@ -10,8 +10,8 @@ import Graphics.Gloss.Interface.IO.Game
 import System.Exit
 
 import Control.Monad.Extra
-import FaceUp.Frame
-import FaceUp.VideoStream
+import FaceTrace.Frame
+import FaceTrace.VideoStream
 
 
 data VideoState = VideoState
