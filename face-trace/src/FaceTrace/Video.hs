@@ -143,6 +143,9 @@ videoPlayer windowTitle video = do
 
       displayWidth :: Int
       displayWidth = pixelWidth
+                   & iterate (`div` 2)
+                   & dropWhile (> 1024)
+                   & head
 
       displayHeight :: Int
       displayHeight = round (fromIntegral displayWidth / displayAspectRatio)
