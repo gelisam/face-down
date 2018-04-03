@@ -4,5 +4,6 @@ packages:
   - face-up
   - face-down
 extra-deps:
-  - ffmpeg-light-0.12.0.1
+  - git: git@github.com:gelisam/ffmpeg-light.git
+    commit: 0accbacf0a59c77e55c8a0dc50b488d06dfe8100
   - gloss-juicy-0.2.2
