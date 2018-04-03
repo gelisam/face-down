@@ -142,8 +142,7 @@ videoPlayer windowTitle video = do
                          % (pixelHeight * denominator pixelAspectRatio)
 
       displayWidth :: Int
-      displayWidth = pixelWidth
-                   & iterate (`div` 2)
+      displayWidth = div pixelWidth <$> [1..]
                    & dropWhile (> 1024)
                    & head
 
