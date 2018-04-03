@@ -2,10 +2,12 @@
 module FaceTrace.Video where
 
 import Prelude
+import Codec.FFmpeg.Probe
 import Control.Exception
 import Control.Lens
 import Data.IORef
 import Data.Maybe
+import Data.Ratio
 import Graphics.Gloss.Interface.IO.Game
 import System.Exit
 
@@ -60,6 +62,22 @@ videoReset video = do
 withVideo :: FilePath -> (Video -> IO a) -> IO a
 withVideo filePath = bracket (videoOpen filePath) videoClose
 
+
+-- | (width, height)
+videoDimentions :: Video -> IO (Int, Int)
+videoDimentions video = do
+  withAvFile (videoFilePath video) $ do
+    withStream 0 $ do
+      Just avCodecContext <- codecContext
+      streamImageSize avCodecContext
+
+-- | width:height
+videoPixelAspectRatio :: Video -> IO (Maybe (Ratio Int))
+videoPixelAspectRatio video = do
+  withAvFile (videoFilePath video) $ do
+    withStream 0 $ do
+      Just avCodecContext <- codecContext
+      streamSampleAspectRatio avCodecContext
 
 videoNextFrame :: Video -> IO (Maybe Frame)
 videoNextFrame video = do
@@ -116,17 +134,34 @@ videoGetFrameAtTimestamp video timestamp = do
 
 videoPlayer :: String -> Video -> IO ()
 videoPlayer windowTitle video = do
-  firstFrame <- fromMaybe defaultFrame <$> videoNextFrame video
+  (pixelWidth, pixelHeight) <- videoDimentions video
+  pixelAspectRatio <- videoPixelAspectRatio video
+                  <&> fromMaybe 1
+  let displayAspectRatio :: Ratio Int
+      displayAspectRatio = (pixelWidth  * numerator pixelAspectRatio)
+                         % (pixelHeight * denominator pixelAspectRatio)
 
-  let display :: Display
+      displayWidth :: Int
+      displayWidth = pixelWidth
+
+      displayHeight :: Int
+      displayHeight = round (fromIntegral displayWidth / displayAspectRatio)
+
+      display :: Display
       display = InWindow windowTitle
-                         (frameWidth firstFrame, frameHeight firstFrame)
+                         (displayWidth, displayHeight)
                          (10, 10)
+
+      scaleX :: Float
+      scaleX = fromIntegral displayWidth / fromIntegral pixelWidth
+
+      scaleY :: Float
+      scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
 
       draw :: Double -> IO Picture
       draw = videoGetFrameAtTimestamp video
-         >&> fromMaybe defaultFrame
-         >&> framePicture
+         >&> maybe blank framePicture
+         >&> scale scaleX scaleY
 
       react :: Event -> Double -> IO Double
       react (EventKey (Char 'q') _ _ _) _         = exitSuccess
