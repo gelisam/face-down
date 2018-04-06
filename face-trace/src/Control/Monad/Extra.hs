@@ -4,7 +4,7 @@ import Control.Category ((>>>))
 import Control.Monad ((>=>))
 
 
--- | Use instead of '(>>>)' after a '(>=>)'.
+-- | Use instead of '(>>>)' immediately after a monadic action.
 --
 -- '(>>>)' composes pure transformations, while '(>=>)' composes monadic
 -- transformations. They are both associative, so we can easily extract and name
@@ -41,3 +41,5 @@ import Control.Monad ((>=>))
       -> (b -> c)
       -> (a -> f c)
 f >&> g = f >>> fmap g
+
+infixr 1 >&>

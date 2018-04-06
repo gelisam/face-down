@@ -1,4 +1,5 @@
-module FaceTrace.VideoPlayer where
+{-# LANGUAGE TemplateHaskell #-}
+module FaceTrace.VideoPlayer (videoPlayer) where
 
 import Control.Lens
 import Data.Maybe
@@ -10,6 +11,13 @@ import Control.Monad.Extra
 import FaceTrace.Frame
 import FaceTrace.Video
 
+
+data State = State
+  { _statePlaying   :: Bool
+  , _stateTimestamp :: Double
+  }
+
+makeLenses ''State
 
 videoPlayer :: String -> Video -> IO ()
 videoPlayer windowTitle video = do
@@ -39,24 +47,31 @@ videoPlayer windowTitle video = do
       scaleY :: Float
       scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
 
-      draw :: Double -> IO Picture
-      draw = videoGetFrameAtTimestamp video
+      draw :: State -> IO Picture
+      draw = view stateTimestamp
+         >>> videoGetFrameAtTimestamp video
          >&> maybe blank framePicture
-         >&> scale scaleX scaleY
+         >>> scale scaleX scaleY
 
-      react :: Event -> Double -> IO Double
-      react (EventKey (Char 'q') _ _ _) _         = exitSuccess
-      react (EventKey (Char 'r') _ _ _) _         = pure 0
-      react _                           timestamp = pure timestamp
+      react :: Event -> State -> IO State
+      react (EventKey (Char 'q')            _  _ _) = \_
+                                                   -> exitSuccess
+      react (EventKey (Char 'r')            _  _ _) = pure
+                                                  >&> stateTimestamp .~ 0
+      react (EventKey (SpecialKey KeySpace) Up _ _) = pure
+                                                  >&> statePlaying %~ not
+      react _                                       = pure
 
-      update :: Float -> Double -> IO Double
-      update dt = (+ realToFrac dt)
-              >>> pure
+      update :: Float -> State -> IO State
+      update dt state = pure state
+                    <&> if state ^. statePlaying
+                        then stateTimestamp +~ realToFrac dt
+                        else id
 
   playIO display
          black
          30
-         0
+         (State False 0)
          draw
          react
          update
