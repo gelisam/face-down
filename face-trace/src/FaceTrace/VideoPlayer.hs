@@ -63,8 +63,10 @@ videoPlayer windowTitle filePath = do
       react (EventKey (Char 'q')            _  _ _) = \_ -> do
         videoLoaderClose videoLoader
         exitSuccess
-      react (EventKey (Char 'r')            _  _ _) = pure
-                                                  >&> stateTimestamp .~ 0
+      react (EventKey (Char 'r')            _  _ _) = \state -> do
+        atomically $ setPlayTime videoLoader 0
+        pure $ state
+             & stateTimestamp .~ 0
       react (EventKey (SpecialKey KeySpace) Up _ _) = pure
                                                   >&> statePlaying %~ not
       react _                                       = pure
