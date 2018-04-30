@@ -51,10 +51,18 @@ videoPlayer windowTitle filePath = do
       scaleY :: Float
       scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
 
+      textPicture :: String -> Picture
+      textPicture = translate (fromIntegral (-displayWidth) / 2 + 5)
+                              (fromIntegral displayHeight   / 2 - 5)
+                  . scale 0.15 0.15
+                  . translate 0 (-113)
+                  . color white
+                  . text
+
       draw :: State -> IO Picture
       draw _ = atomically (getPlayFrame videoLoader) <&> \case
-        Nothing -> text "Loading..."
-        Just Nothing -> text "Done!"
+        Nothing -> textPicture "Loading..."
+        Just Nothing -> textPicture "Done!"
         Just (Just frame) -> frame
                            & framePicture
                            & scale scaleX scaleY
