@@ -2,11 +2,14 @@ name: face-trace
 
 dependencies:
   - JuicyPixels
+  - async
   - base
+  - containers
   - ffmpeg-light
   - gloss
   - gloss-juicy
   - lens
+  - stm
 
 ghc-options:
   - -Wall

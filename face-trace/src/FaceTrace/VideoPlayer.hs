@@ -1,6 +1,7 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceTrace.VideoPlayer (videoPlayer) where
 
+import Control.Concurrent.STM
 import Control.Lens
 import Data.Maybe
 import Data.Ratio
@@ -9,7 +10,8 @@ import System.Exit
 
 import Control.Monad.Extra
 import FaceTrace.Frame
-import FaceTrace.Video
+import FaceTrace.VideoInfo
+import FaceTrace.VideoLoader
 
 
 data State = State
@@ -19,10 +21,12 @@ data State = State
 
 makeLenses ''State
 
-videoPlayer :: String -> Video -> IO ()
-videoPlayer windowTitle video = do
-  (pixelWidth, pixelHeight) <- videoDimentions video
-  pixelAspectRatio <- videoPixelAspectRatio video
+
+videoPlayer :: String -> FilePath -> IO ()
+videoPlayer windowTitle filePath = do
+  videoLoader <- videoLoaderOpen filePath 0 1
+  (pixelWidth, pixelHeight) <- videoDimentions filePath
+  pixelAspectRatio <- videoPixelAspectRatio filePath
                   <&> fromMaybe 1
   let displayAspectRatio :: Ratio Int
       displayAspectRatio = (pixelWidth  * numerator pixelAspectRatio)
@@ -48,14 +52,17 @@ videoPlayer windowTitle video = do
       scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
 
       draw :: State -> IO Picture
-      draw = view stateTimestamp
-         >>> videoGetFrameAtTimestamp video
-         >&> maybe blank framePicture
-         >>> scale scaleX scaleY
+      draw _ = atomically (getPlayFrame videoLoader) <&> \case
+        Nothing -> text "Loading..."
+        Just Nothing -> text "Done!"
+        Just (Just frame) -> frame
+                           & framePicture
+                           & scale scaleX scaleY
 
       react :: Event -> State -> IO State
-      react (EventKey (Char 'q')            _  _ _) = \_
-                                                   -> exitSuccess
+      react (EventKey (Char 'q')            _  _ _) = \_ -> do
+        videoLoaderClose videoLoader
+        exitSuccess
       react (EventKey (Char 'r')            _  _ _) = pure
                                                   >&> stateTimestamp .~ 0
       react (EventKey (SpecialKey KeySpace) Up _ _) = pure
@@ -63,10 +70,17 @@ videoPlayer windowTitle video = do
       react _                                       = pure
 
       update :: Float -> State -> IO State
-      update dt state = pure state
-                    <&> if state ^. statePlaying
-                        then stateTimestamp +~ realToFrac dt
-                        else id
+      update dt state = do
+        if state ^. statePlaying
+        then do
+          atomically (getPlayFrame videoLoader) >>= \case
+            Nothing -> pure state
+            Just _ -> do
+              let t' = state ^. stateTimestamp + realToFrac dt
+              atomically $ setPlayTime videoLoader t'
+              pure $ state
+                   & stateTimestamp .~ t'
+        else pure state
 
   playIO display
          black
