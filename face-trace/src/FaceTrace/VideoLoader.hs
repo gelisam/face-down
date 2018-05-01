@@ -121,7 +121,8 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
         guard (secondTimestamp <= playTime - trailingDuration)
 
     -- drop the oldest frame
-    modifyTVar loadedFramesTVar Map.deleteMin
+    writeTVar  firstFrameDroppedTVar True
+    modifyTVar loadedFramesTVar      Map.deleteMin
 
   pure $ VideoLoader firstFrameDroppedTVar
                      lastFrameLoadedTVar
