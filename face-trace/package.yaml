@@ -24,3 +24,6 @@ executables:
     dependencies:
       - face-trace
       - optparse-generic
+    ghc-options:
+      - -threaded
+      - "-with-rtsopts -N"
