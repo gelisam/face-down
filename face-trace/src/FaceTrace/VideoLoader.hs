@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceTrace.VideoLoader where
 
+import Control.Applicative
 import Control.Concurrent.Async
 import Control.Exception
 import Control.Lens
@@ -19,8 +20,7 @@ data VideoLoader = VideoLoader
   , _videoLoaderLastFrameLoaded   :: TVar Bool
   , _videoLoaderLoadedFrames      :: TVar (Map Double Frame)
   , _videoLoaderPlayTime          :: TVar Double
-  , _videoLoaderPreloadingThread  :: Async ()
-  , _videoLoaderResettingThread   :: Async ()
+  , _videoLoaderLoadingThread     :: Async ()
   , _videoLoaderTrailingThread    :: Async ()
   , _videoLoaderVideoStream       :: TMVar VideoStream
   }
@@ -68,57 +68,72 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
                                                 loadedFramesTVar
                                                 playTimeTVar
 
-  -- try to keep the last loaded frame >= playTime + preloadDuration
-  preloadingThread <- async $ forever $ do
-    -- block until we need to load the next frame
-    videoStream <- atomically $ do
-      playFrameIsLoading <- isPlayFrameLoading
+  let blockUntilLoadFrame :: STM ()
+      blockUntilLoadFrame = do
+        playFrameIsLoading <- isPlayFrameLoading
+        if playFrameIsLoading
+        then pure ()
+        else do
+          lastFrameLoaded <- readTVar lastFrameLoadedTVar
+          guard (not lastFrameLoaded)
 
-      preloadTime <- fromMaybe (-infinity) <$> lastLoadedFrameTimestamp
-      playTime <- readTVar playTimeTVar
+          preloadTime <- fromMaybe (-infinity) <$> lastLoadedFrameTimestamp
+          playTime <- readTVar playTimeTVar
+          guard (preloadTime < playTime + preloadDuration)
 
-      guard (playFrameIsLoading || preloadTime < playTime + preloadDuration)
-      takeTMVar videoStreamTMVar
+  let blockUntilDropFrame :: STM ()
+      blockUntilDropFrame = secondLoadedFrameTimestamp >>= \case
+        Nothing -> retry
+        Just secondTimestamp -> do
+          playTime <- readTVar playTimeTVar
+          guard (secondTimestamp <= playTime - trailingDuration)
 
-    -- load the next frame
-    maybeFrameTime <- videoStreamNextFrameTime videoStream
-    atomically $ do
-      putTMVar videoStreamTMVar videoStream
-      case maybeFrameTime of
-        Just (frame, time) -> modifyTVar loadedFramesTVar
-                            $ Map.insert time frame
-        Nothing -> writeTVar lastFrameLoadedTVar True
+  let blockUntilReset :: STM ()
+      blockUntilReset = do
+        firstFrameDropped <- readTVar firstFrameDroppedTVar
+        guard firstFrameDropped
 
-  -- reset whenever playTime < last dropped frame
-  resettingThread <- async $ forever $ do
-    -- block until we need to reset
-    videoStream <- atomically $ do
-      firstFrameDropped <- readTVar firstFrameDroppedTVar
-      guard firstFrameDropped
+        playTime <- readTVar playTimeTVar
+        firstLoadedFrameTimestamp >>= \case
+          Just trailTime | playTime < trailTime -> pure ()
+          _ -> retry
 
-      playTime <- readTVar playTimeTVar
-      firstLoadedFrameTimestamp >>= \case
-        Just trailTime | playTime < trailTime -> do
-          takeTMVar videoStreamTMVar
-        _ -> retry
+  -- True for reset
+  let blockUntilResetOrLoadFrame :: STM Bool
+      blockUntilResetOrLoadFrame = (True  <$ blockUntilReset)
+                               <|> (False <$ blockUntilLoadFrame)
 
-    -- reset
-    videoStreamClose videoStream
-    videoStream' <- videoStreamOpen filePath
-    atomically $ do
-      writeTVar  firstFrameDroppedTVar False
-      writeTVar  lastFrameLoadedTVar   False
-      writeTVar  loadedFramesTVar      mempty
-      putTMVar   videoStreamTMVar      videoStream'
+  -- try to keep the last loaded frame >= playTime + preloadDuration,
+  -- but reset whenever playTime < last dropped frame
+  loadingThread <- async $ forever $ do
+    -- block until we need to load the next frame or reset
+    (shouldReset, videoStream) <- atomically $ do
+      (,) <$> blockUntilResetOrLoadFrame
+          <*> takeTMVar videoStreamTMVar
+
+    -- load the next frame or reset
+    if shouldReset
+    then do
+      videoStreamClose videoStream
+      videoStream' <- videoStreamOpen filePath
+      atomically $ do
+        writeTVar  firstFrameDroppedTVar False
+        writeTVar  lastFrameLoadedTVar   False
+        writeTVar  loadedFramesTVar      mempty
+        putTMVar   videoStreamTMVar      videoStream'
+    else do
+      maybeFrameTime <- videoStreamNextFrameTime videoStream
+      atomically $ do
+        putTMVar videoStreamTMVar videoStream
+        case maybeFrameTime of
+          Just (frame, time) -> modifyTVar loadedFramesTVar
+                              $ Map.insert time frame
+          Nothing -> writeTVar lastFrameLoadedTVar True
 
   -- drop frames older than playTime - trailingDuration
   trailingThread <- async $ forever $ atomically $ do
     -- block until we need to drop the oldest frame
-    secondLoadedFrameTimestamp >>= \case
-      Nothing -> retry
-      Just secondTimestamp -> do
-        playTime <- readTVar playTimeTVar
-        guard (secondTimestamp <= playTime - trailingDuration)
+    blockUntilDropFrame
 
     -- drop the oldest frame
     writeTVar  firstFrameDroppedTVar True
@@ -128,8 +143,7 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
                      lastFrameLoadedTVar
                      loadedFramesTVar
                      playTimeTVar
-                     preloadingThread
-                     resettingThread
+                     loadingThread
                      trailingThread
                      videoStreamTMVar
   where
@@ -141,9 +155,8 @@ videoLoaderClose videoLoader = do
   videoStream <- atomically $ takeTMVar (view videoLoaderVideoStream videoLoader)
   videoStreamClose videoStream
 
-  cancel (view videoLoaderPreloadingThread videoLoader)
-  cancel (view videoLoaderResettingThread  videoLoader)
-  cancel (view videoLoaderTrailingThread   videoLoader)
+  cancel (view videoLoaderLoadingThread   videoLoader)
+  cancel (view videoLoaderTrailingThread  videoLoader)
 
 withVideoLoader :: FilePath -> Double -> Double -> (VideoLoader -> IO a) -> IO a
 withVideoLoader filePath trailingDuration preloadDuration
