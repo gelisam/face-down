@@ -24,7 +24,7 @@ makeLenses ''State
 
 videoPlayer :: String -> FilePath -> IO ()
 videoPlayer windowTitle filePath = do
-  videoLoader <- videoLoaderOpen filePath 0 1
+  videoLoader <- videoLoaderOpen filePath 2 4
   (pixelWidth, pixelHeight) <- videoDimentions filePath
   pixelAspectRatio <- videoPixelAspectRatio filePath
                   <&> fromMaybe 1
@@ -59,6 +59,17 @@ videoPlayer windowTitle filePath = do
                   . color white
                   . text
 
+      setTimestamp :: Double -> State -> IO State
+      setTimestamp t state = do
+        atomically $ setPlayTime videoLoader t
+        pure $ state
+             & stateTimestamp .~ t
+
+      modifyTimestamp :: (Double -> Double) -> State -> IO State
+      modifyTimestamp f state = do
+        let t = view stateTimestamp state
+        setTimestamp (f t) state
+
       draw :: State -> IO Picture
       draw _ = atomically (getPlayFrame videoLoader) <&> \case
         Nothing -> textPicture "Loading..."
@@ -68,16 +79,16 @@ videoPlayer windowTitle filePath = do
                            & scale scaleX scaleY
 
       react :: Event -> State -> IO State
-      react (EventKey (Char 'q')            _  _ _) = \_ -> do
+      react (EventKey (Char 'q')            _    _ _) = \_ -> do
         videoLoaderClose videoLoader
         exitSuccess
-      react (EventKey (Char 'r')            _  _ _) = \state -> do
-        atomically $ setPlayTime videoLoader 0
-        pure $ state
-             & stateTimestamp .~ 0
-      react (EventKey (SpecialKey KeySpace) Up _ _) = pure
-                                                  >&> statePlaying %~ not
-      react _                                       = pure
+      react (EventKey (Char 'r')            Down _ _) = setTimestamp 0
+      react (EventKey (SpecialKey KeyLeft)  Down _ _) = modifyTimestamp $ \t
+                                                     -> (t - 2) `max` 0
+      react (EventKey (SpecialKey KeyRight) Down _ _) = modifyTimestamp (+ 2)
+      react (EventKey (SpecialKey KeySpace) Down _ _) = pure
+                                                    >&> statePlaying %~ not
+      react _                                         = pure
 
       update :: Float -> State -> IO State
       update dt state = do
