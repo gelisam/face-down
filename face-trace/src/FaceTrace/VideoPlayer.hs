@@ -79,7 +79,7 @@ videoPlayer windowTitle filePath = do
                            & scale scaleX scaleY
 
       react :: Event -> State -> IO State
-      react (EventKey (Char 'q')            _    _ _) = \_ -> do
+      react (EventKey (SpecialKey KeyEsc)   Down _ _) = \_ -> do
         videoLoaderClose videoLoader
         exitSuccess
       react (EventKey (Char 'r')            Down _ _) = setTimestamp 0
