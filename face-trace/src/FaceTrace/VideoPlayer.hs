@@ -3,8 +3,11 @@ module FaceTrace.VideoPlayer (videoPlayer) where
 
 import Control.Concurrent.STM
 import Control.Lens
+import Control.Monad
 import Data.Maybe
+import Data.Monoid
 import Data.Ratio
+import Graphics.Gloss.Data.Point
 import Graphics.Gloss.Interface.IO.Game
 import System.Exit
 
@@ -17,6 +20,7 @@ import FaceTrace.VideoLoader
 data State = State
   { _statePlaying   :: Bool
   , _stateTimestamp :: Double
+  , _stateMousePos  :: Maybe (Float, Float)
   }
 
 makeLenses ''State
@@ -59,6 +63,24 @@ videoPlayer windowTitle filePath = do
                   . color white
                   . text
 
+      rectangleLowerSolid :: Float -> Float -> Picture
+      rectangleLowerSolid w h = rectangleUpperSolid w h
+                              & rotate 180
+
+      rectangleLeftSolid :: Float -> Float -> Picture
+      rectangleLeftSolid w h = rectangleUpperSolid h w
+                             & rotate (-90)
+
+      rectangleRightSolid :: Float -> Float -> Picture
+      rectangleRightSolid w h = rectangleUpperSolid h w
+                              & rotate 90
+
+      antiRectangle :: Float -> Float -> Float -> Float -> Picture
+      antiRectangle ww hh w h = (rectangleUpperSolid ww (hh / 2 - h / 2) & translate 0 ( h / 2))
+                             <> (rectangleLowerSolid ww (hh / 2 - h / 2) & translate 0 (-h / 2))
+                             <> (rectangleLeftSolid  (ww / 2 - w / 2) h  & translate (-w / 2) 0)
+                             <> (rectangleRightSolid (ww / 2 - w / 2) h  & translate ( w / 2) 0)
+
       setTimestamp :: Double -> State -> IO State
       setTimestamp t state = do
         atomically $ setPlayTime videoLoader t
@@ -71,12 +93,22 @@ videoPlayer windowTitle filePath = do
         setTimestamp (f t) state
 
       draw :: State -> IO Picture
-      draw _ = atomically (getPlayFrame videoLoader) <&> \case
+      draw state = atomically (getPlayFrame videoLoader) <&> \case
         Nothing -> textPicture "Loading..."
         Just Nothing -> textPicture "Done!"
-        Just (Just frame) -> frame
-                           & framePicture
-                           & scale scaleX scaleY
+        Just (Just frame) ->
+          let videoFrame = frame
+                         & framePicture
+                         & scale scaleX scaleY
+              mouseRect = color (makeColor 0 0 0 0.5)
+                        $ case state ^. stateMousePos of
+                Nothing    -> rectangleSolid (fromIntegral displayWidth)
+                                             (fromIntegral displayHeight)
+                Just (x,y) -> antiRectangle (2 * fromIntegral displayWidth)
+                                            (2 * fromIntegral displayHeight)
+                                            200 150
+                            & translate x y
+          in videoFrame <> mouseRect
 
       react :: Event -> State -> IO State
       react (EventKey (SpecialKey KeyEsc)   Down _ _) = \_ -> do
@@ -88,6 +120,11 @@ videoPlayer windowTitle filePath = do
       react (EventKey (SpecialKey KeyRight) Down _ _) = modifyTimestamp (+ 2)
       react (EventKey (SpecialKey KeySpace) Down _ _) = pure
                                                     >&> statePlaying %~ not
+      react (EventMotion mousePos)                    = pure
+                                                    >&> stateMousePos .~ do
+        guard $ pointInBox mousePos (-fromIntegral displayWidth / 2, -fromIntegral displayHeight / 2)
+                                    ( fromIntegral displayWidth / 2,  fromIntegral displayHeight / 2)
+        pure mousePos
       react _                                         = pure
 
       update :: Float -> State -> IO State
@@ -106,7 +143,7 @@ videoPlayer windowTitle filePath = do
   playIO display
          black
          30
-         (State False 0)
+         (State False 0 Nothing)
          draw
          react
          update
