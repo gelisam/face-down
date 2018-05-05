@@ -11,6 +11,6 @@ library:
   source-dirs: src
 
 executables:
-  face-down:
+  face-up:
     main: main.hs
     source-dirs: app
