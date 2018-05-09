@@ -25,35 +25,35 @@ data Env = Env
 makeLenses ''Env
 
 data State = State
-  { _timestamp        :: Double
-  , _stateFaceMarker  :: FaceMarker.State ()
-  , _stateVideoPlayer :: VideoPlayer.State ()
+  { _timestamp               :: Double
+  , _partialStateFaceMarker  :: FaceMarker.State ()
+  , _partialStateVideoPlayer :: VideoPlayer.State ()
   }
 makeLenses ''State
 
-fullStateFaceMarker :: Lens' State FaceMarker.FullState
-fullStateFaceMarker = lens get_ set_
+stateFaceMarker :: Lens' State FaceMarker.FullState
+stateFaceMarker = lens get_ set_
   where
     get_ :: State -> FaceMarker.FullState
-    get_ state = state ^. stateFaceMarker
-               & FaceMarker.timestamp .~ (state ^. timestamp)
+    get_ ss = ss ^. partialStateFaceMarker
+            & FaceMarker.timestamp .~ (ss ^. timestamp)
 
     set_ :: State -> FaceMarker.FullState -> State
-    set_ state fullState = state
-                         & timestamp       .~ (fullState ^. FaceMarker.timestamp)
-                         & stateFaceMarker .~ (fullState & FaceMarker.timestamp .~ ())
+    set_ ss s = ss
+              & timestamp              .~ (s ^. FaceMarker.timestamp)
+              & partialStateFaceMarker .~ (s & FaceMarker.timestamp .~ ())
 
-fullStateVideoPlayer :: Lens' State VideoPlayer.FullState
-fullStateVideoPlayer = lens get_ set_
+stateVideoPlayer :: Lens' State VideoPlayer.FullState
+stateVideoPlayer = lens get_ set_
   where
     get_ :: State -> VideoPlayer.FullState
-    get_ state = state ^. stateVideoPlayer
-               & VideoPlayer.timestamp .~ (state ^. timestamp)
+    get_ ss = ss ^. partialStateVideoPlayer
+            & VideoPlayer.timestamp .~ (ss ^. timestamp)
 
     set_ :: State -> VideoPlayer.FullState -> State
-    set_ state fullState = state
-                         & timestamp       .~ (fullState ^. VideoPlayer.timestamp)
-                         & stateVideoPlayer .~ (fullState & VideoPlayer.timestamp .~ ())
+    set_ ss s = ss
+              & timestamp               .~ (s ^. VideoPlayer.timestamp)
+              & partialStateVideoPlayer .~ (s & VideoPlayer.timestamp .~ ())
 
 
 initEnv :: FilePath -> IO Env
@@ -76,19 +76,19 @@ quit = do
 
 
 draw :: State -> ReaderT Env IO Picture
-draw state = (magnify envVideoPlayer $ VideoPlayer.draw (state ^. fullStateVideoPlayer))
-        <<>> (magnify envFaceMarker  $ FaceMarker.draw  (state ^. fullStateFaceMarker))
+draw state = (magnify envVideoPlayer $ VideoPlayer.draw (state ^. stateVideoPlayer))
+        <<>> (magnify envFaceMarker  $ FaceMarker.draw  (state ^. stateFaceMarker))
   where
     (<<>>) = liftA2 (<>)
 
 
 withFaceMarker :: ReaderT FaceMarker.Env (StateT FaceMarker.FullState IO) a
                -> ReaderT Env (StateT State IO) a
-withFaceMarker = magnify envFaceMarker . zoom fullStateFaceMarker
+withFaceMarker = magnify envFaceMarker . zoom stateFaceMarker
 
 withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
                 -> ReaderT Env (StateT State IO) a
-withVideoPlayer = magnify envVideoPlayer . zoom fullStateVideoPlayer
+withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 moveBackwards :: ReaderT Env (StateT State IO) ()
 moveBackwards = withVideoPlayer VideoPlayer.moveBackwards
