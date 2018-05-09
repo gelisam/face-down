@@ -5,7 +5,7 @@ import Control.Applicative
 import Control.Lens
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
-import Control.Monad.Trans.State (StateT, execStateT)
+import Control.Monad.Trans.State (StateT, execStateT, get)
 import Control.Monad.IO.Class
 import Control.Monad.Morph
 import Data.Monoid
@@ -91,10 +91,18 @@ withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
 withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 moveBackwards :: ReaderT Env (StateT State IO) ()
-moveBackwards = withVideoPlayer VideoPlayer.moveBackwards
+moveBackwards = do
+  state <- lift get
+  if state ^. stateVideoPlayer . VideoPlayer.playing
+  then withVideoPlayer VideoPlayer.moveBackwards
+  else withFaceMarker FaceMarker.moveBackwards
 
 moveForwards :: ReaderT Env (StateT State IO) ()
-moveForwards = withVideoPlayer VideoPlayer.moveForwards
+moveForwards = do
+  state <- lift get
+  if state ^. stateVideoPlayer . VideoPlayer.playing
+  then withVideoPlayer VideoPlayer.moveForwards
+  else withFaceMarker FaceMarker.moveForwards
 
 setMousePos :: (Float, Float) -> ReaderT Env (StateT State IO) ()
 setMousePos = withFaceMarker . FaceMarker.setMousePos

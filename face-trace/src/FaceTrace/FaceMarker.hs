@@ -9,6 +9,7 @@ import Graphics.Gloss.Data.Point
 import Graphics.Gloss.Interface.IO.Game
 
 import FaceTrace.Graphics
+import FaceTrace.FaceState
 import FaceTrace.Size
 
 
@@ -42,6 +43,12 @@ draw state = magnify size $ do
               <&> translate x y
     Nothing    -> clear
 
+
+moveBackwards :: ReaderT Env (StateT FullState IO) ()
+moveBackwards = timestamp %= previousFaceTimestamp
+
+moveForwards :: ReaderT Env (StateT FullState IO) ()
+moveForwards = timestamp %= nextFaceTimestamp
 
 setMousePos :: (Float, Float) -> ReaderT Env (StateT FullState IO) ()
 setMousePos pos = do
