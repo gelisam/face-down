@@ -2,11 +2,11 @@
 import Codec.FFmpeg
 import Options.Generic
 
-import FaceTrace.VideoPlayer
+import FaceTrace
 
 
 main :: IO ()
 main = do
   initFFmpeg
   filePath <- getRecord "face-trace"
-  videoPlayer "face-trace" filePath
+  runApp "face-trace" filePath

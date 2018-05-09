@@ -10,8 +10,11 @@ dependencies:
   - gloss
   - gloss-juicy
   - lens
+  - mmorph
+  - mtl
   - safecopy
   - stm
+  - transformers
 
 ghc-options:
   - -Wall

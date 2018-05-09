@@ -1,132 +1,76 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
-module FaceTrace.VideoPlayer (videoPlayer) where
+module FaceTrace.VideoPlayer where
 
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad
-import Data.Maybe
-import Data.Monoid
-import Data.Ratio
-import Graphics.Gloss.Data.Point
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State (StateT, get)
 import Graphics.Gloss.Interface.IO.Game
-import System.Exit
 
-import Control.Monad.Extra
-import FaceTrace.Frame
-import FaceTrace.VideoInfo
+import FaceTrace.Graphics
+import FaceTrace.Size
 import FaceTrace.VideoLoader
-import Graphics.Gloss.Extra
 
+
+data Env = Env
+  { _size        :: Size
+  , _videoLoader :: VideoLoader
+  }
+makeLenses ''Env
 
 data State = State
-  { _statePlaying   :: Bool
-  , _stateTimestamp :: Double
-  , _stateMousePos  :: Maybe (Float, Float)
+  { _playing   :: Bool
+  , _timestamp :: Double
   }
-
 makeLenses ''State
 
 
-videoPlayer :: String -> FilePath -> IO ()
-videoPlayer windowTitle filePath = do
-  videoLoader <- videoLoaderOpen filePath 2 4
-  (pixelWidth, pixelHeight) <- videoDimentions filePath
-  pixelAspectRatio <- videoPixelAspectRatio filePath
-                  <&> fromMaybe 1
-  let displayAspectRatio :: Ratio Int
-      displayAspectRatio = (pixelWidth  * numerator pixelAspectRatio)
-                         % (pixelHeight * denominator pixelAspectRatio)
+initEnv :: Size -> FilePath -> IO Env
+initEnv size_ filePath = Env size_
+                     <$> videoLoaderOpen filePath 2 4
 
-      displayWidth :: Int
-      displayWidth = div pixelWidth <$> [1..]
-                   & dropWhile (> 1024)
-                   & head
+initState :: State
+initState = State False 0
 
-      displayHeight :: Int
-      displayHeight = round (fromIntegral displayWidth / displayAspectRatio)
+quit :: ReaderT Env IO ()
+quit = do
+  env <- ask
+  lift $ videoLoaderClose (env ^. videoLoader)
 
-      display :: Display
-      display = InWindow windowTitle
-                         (displayWidth, displayHeight)
-                         (10, 10)
 
-      scaleX :: Float
-      scaleX = fromIntegral displayWidth / fromIntegral pixelWidth
+draw :: State -> ReaderT Env IO Picture
+draw state = do
+  env <- ask
+  liftIO $ atomically $ setPlayTime (env ^. videoLoader) (state ^. timestamp)
+  (liftIO $ atomically $ getPlayFrame (env ^. videoLoader)) >>= \case
+    Nothing           -> magnify size $ textPicture "Loading..."
+    Just Nothing      -> magnify size $ textPicture "Done!"
+    Just (Just frame) -> magnify size $ framePicture frame
 
-      scaleY :: Float
-      scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
 
-      textPicture :: String -> Picture
-      textPicture = translate (fromIntegral (-displayWidth) / 2 + 5)
-                              (fromIntegral displayHeight   / 2 - 5)
-                  . scale 0.15 0.15
-                  . translate 0 (-113)
-                  . color white
-                  . text
+moveBackwards :: ReaderT Env (StateT State IO) ()
+moveBackwards = do
+  timestamp -= 2
+  timestamp %= max 0
 
-      setTimestamp :: Double -> State -> IO State
-      setTimestamp t state = do
-        atomically $ setPlayTime videoLoader t
-        pure $ state
-             & stateTimestamp .~ t
+moveForwards :: ReaderT Env (StateT State IO) ()
+moveForwards = timestamp += 2
 
-      modifyTimestamp :: (Double -> Double) -> State -> IO State
-      modifyTimestamp f state = do
-        let t = view stateTimestamp state
-        setTimestamp (f t) state
+pause :: ReaderT Env (StateT State IO) ()
+pause = playing .= False
 
-      draw :: State -> IO Picture
-      draw state = atomically (getPlayFrame videoLoader) <&> \case
-        Nothing -> textPicture "Loading..."
-        Just Nothing -> textPicture "Done!"
-        Just (Just frame) ->
-          let videoFrame = frame
-                         & framePicture
-                         & scale scaleX scaleY
-              mouseRect = color (makeColor 0 0 0 0.5)
-                        $ case state ^. stateMousePos of
-                Nothing    -> rectangleSolid (fromIntegral displayWidth)
-                                             (fromIntegral displayHeight)
-                Just (x,y) -> antiRectangle (2 * fromIntegral displayWidth)
-                                            (2 * fromIntegral displayHeight)
-                                            200 150
-                            & translate x y
-          in videoFrame <> mouseRect
+play :: ReaderT Env (StateT State IO) ()
+play = playing .= True
 
-      react :: Event -> State -> IO State
-      react (EventKey (SpecialKey KeyEsc)   Down _ _) = \_ -> do
-        videoLoaderClose videoLoader
-        exitSuccess
-      react (EventKey (Char 'r')            Down _ _) = setTimestamp 0
-      react (EventKey (SpecialKey KeyLeft)  Down _ _) = modifyTimestamp $ \t
-                                                     -> (t - 2) `max` 0
-      react (EventKey (SpecialKey KeyRight) Down _ _) = modifyTimestamp (+ 2)
-      react (EventKey (SpecialKey KeySpace) Down _ _) = pure
-                                                    >&> statePlaying %~ not
-      react (EventMotion mousePos)                    = pure
-                                                    >&> stateMousePos .~ do
-        guard $ pointInBox mousePos (-fromIntegral displayWidth / 2, -fromIntegral displayHeight / 2)
-                                    ( fromIntegral displayWidth / 2,  fromIntegral displayHeight / 2)
-        pure mousePos
-      react _                                         = pure
+toggle :: ReaderT Env (StateT State IO) ()
+toggle = playing %= not
 
-      update :: Float -> State -> IO State
-      update dt state = do
-        if state ^. statePlaying
-        then do
-          atomically (getPlayFrame videoLoader) >>= \case
-            Nothing -> pure state
-            Just _ -> do
-              let t' = state ^. stateTimestamp + realToFrac dt
-              atomically $ setPlayTime videoLoader t'
-              pure $ state
-                   & stateTimestamp .~ t'
-        else pure state
 
-  playIO display
-         black
-         30
-         (State False 0 Nothing)
-         draw
-         react
-         update
+update :: Float -> ReaderT Env (StateT State IO) ()
+update dt = do
+  state <- lift get
+  when (state ^. playing) $ do
+    timestamp += realToFrac dt
