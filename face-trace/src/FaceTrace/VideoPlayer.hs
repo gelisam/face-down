@@ -47,8 +47,8 @@ draw state = do
   env <- ask
   liftIO $ atomically $ setPlayTime (env ^. videoLoader) (state ^. timestamp)
   (liftIO $ atomically $ getPlayFrame (env ^. videoLoader)) >>= \case
-    Nothing           -> magnify size $ textPicture "Loading..."
-    Just Nothing      -> magnify size $ textPicture "Done!"
+    Nothing           -> magnify size $ color white <$> textPicture "Loading..."
+    Just Nothing      -> magnify size $ color white <$> textPicture "Done!"
     Just (Just frame) -> magnify size $ framePicture frame
 
 
