@@ -25,10 +25,35 @@ data Env = Env
 makeLenses ''Env
 
 data State = State
-  { _stateFaceMarker  :: FaceMarker.State
-  , _stateVideoPlayer :: VideoPlayer.State
+  { _timestamp        :: Double
+  , _stateFaceMarker  :: FaceMarker.State ()
+  , _stateVideoPlayer :: VideoPlayer.State ()
   }
 makeLenses ''State
+
+fullStateFaceMarker :: Lens' State FaceMarker.FullState
+fullStateFaceMarker = lens get_ set_
+  where
+    get_ :: State -> FaceMarker.FullState
+    get_ state = state ^. stateFaceMarker
+               & FaceMarker.timestamp .~ (state ^. timestamp)
+
+    set_ :: State -> FaceMarker.FullState -> State
+    set_ state fullState = state
+                         & timestamp       .~ (fullState ^. FaceMarker.timestamp)
+                         & stateFaceMarker .~ (fullState & FaceMarker.timestamp .~ ())
+
+fullStateVideoPlayer :: Lens' State VideoPlayer.FullState
+fullStateVideoPlayer = lens get_ set_
+  where
+    get_ :: State -> VideoPlayer.FullState
+    get_ state = state ^. stateVideoPlayer
+               & VideoPlayer.timestamp .~ (state ^. timestamp)
+
+    set_ :: State -> VideoPlayer.FullState -> State
+    set_ state fullState = state
+                         & timestamp       .~ (fullState ^. VideoPlayer.timestamp)
+                         & stateVideoPlayer .~ (fullState & VideoPlayer.timestamp .~ ())
 
 
 initEnv :: FilePath -> IO Env
@@ -39,8 +64,9 @@ initEnv filePath = do
       <*> VideoPlayer.initEnv size_ filePath
 
 initState :: State
-initState = State FaceMarker.initState
-                  VideoPlayer.initState
+initState = State 0
+                  (FaceMarker.initState ())
+                  (VideoPlayer.initState ())
 
 quit :: ReaderT Env IO ()
 quit = do
@@ -50,19 +76,19 @@ quit = do
 
 
 draw :: State -> ReaderT Env IO Picture
-draw state = (magnify envVideoPlayer $ VideoPlayer.draw (state ^. stateVideoPlayer))
-        <<>> (magnify envFaceMarker  $ FaceMarker.draw  (state ^. stateFaceMarker))
+draw state = (magnify envVideoPlayer $ VideoPlayer.draw (state ^. fullStateVideoPlayer))
+        <<>> (magnify envFaceMarker  $ FaceMarker.draw  (state ^. fullStateFaceMarker))
   where
     (<<>>) = liftA2 (<>)
 
 
-withFaceMarker :: ReaderT FaceMarker.Env (StateT FaceMarker.State IO) a
+withFaceMarker :: ReaderT FaceMarker.Env (StateT FaceMarker.FullState IO) a
                -> ReaderT Env (StateT State IO) a
-withFaceMarker = magnify envFaceMarker . zoom stateFaceMarker
+withFaceMarker = magnify envFaceMarker . zoom fullStateFaceMarker
 
-withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.State IO) a
+withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
                 -> ReaderT Env (StateT State IO) a
-withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
+withVideoPlayer = magnify envVideoPlayer . zoom fullStateVideoPlayer
 
 moveBackwards :: ReaderT Env (StateT State IO) ()
 moveBackwards = withVideoPlayer VideoPlayer.moveBackwards

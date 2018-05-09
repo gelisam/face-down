@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 module FaceTrace.FaceMarker where
 
 import Control.Lens
@@ -17,23 +17,25 @@ data Env = Env
   }
 makeLenses ''Env
 
-data State = State
+data State t = State
   { _mousePos  :: Maybe (Float, Float)
+  , _timestamp :: t
   }
+type FullState = State Double
 makeLenses ''State
 
 
 initEnv :: Size -> Env
 initEnv size_ = Env size_
 
-initState :: State
+initState :: t -> State t
 initState = State Nothing
 
 quit :: ReaderT Env IO ()
 quit = pure ()
 
 
-draw :: State -> ReaderT Env IO Picture
+draw :: FullState -> ReaderT Env IO Picture
 draw state = magnify size $ do
   color (makeColor 0 0 0 0.5) <$> case state ^. mousePos of
     Just (x,y) -> antiRectangle 200 150
@@ -41,7 +43,7 @@ draw state = magnify size $ do
     Nothing    -> clear
 
 
-setMousePos :: (Float, Float) -> ReaderT Env (StateT State IO) ()
+setMousePos :: (Float, Float) -> ReaderT Env (StateT FullState IO) ()
 setMousePos pos = do
   env <- ask
   mousePos .= do
@@ -52,5 +54,5 @@ setMousePos pos = do
     pure pos
 
 
-update :: Float -> ReaderT Env (StateT State IO) ()
+update :: Float -> ReaderT Env (StateT FullState IO) ()
 update _ = pure ()

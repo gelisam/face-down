@@ -21,10 +21,11 @@ data Env = Env
   }
 makeLenses ''Env
 
-data State = State
+data State t = State
   { _playing   :: Bool
-  , _timestamp :: Double
+  , _timestamp :: t
   }
+type FullState = State Double
 makeLenses ''State
 
 
@@ -32,8 +33,8 @@ initEnv :: Size -> FilePath -> IO Env
 initEnv size_ filePath = Env size_
                      <$> videoLoaderOpen filePath 2 4
 
-initState :: State
-initState = State False 0
+initState :: t -> State t
+initState = State False
 
 quit :: ReaderT Env IO ()
 quit = do
@@ -41,7 +42,7 @@ quit = do
   lift $ videoLoaderClose (env ^. videoLoader)
 
 
-draw :: State -> ReaderT Env IO Picture
+draw :: FullState -> ReaderT Env IO Picture
 draw state = do
   env <- ask
   liftIO $ atomically $ setPlayTime (env ^. videoLoader) (state ^. timestamp)
@@ -51,25 +52,25 @@ draw state = do
     Just (Just frame) -> magnify size $ framePicture frame
 
 
-moveBackwards :: ReaderT Env (StateT State IO) ()
+moveBackwards :: ReaderT Env (StateT FullState IO) ()
 moveBackwards = do
   timestamp -= 2
   timestamp %= max 0
 
-moveForwards :: ReaderT Env (StateT State IO) ()
+moveForwards :: ReaderT Env (StateT FullState IO) ()
 moveForwards = timestamp += 2
 
-pause :: ReaderT Env (StateT State IO) ()
+pause :: ReaderT Env (StateT FullState IO) ()
 pause = playing .= False
 
-play :: ReaderT Env (StateT State IO) ()
+play :: ReaderT Env (StateT FullState IO) ()
 play = playing .= True
 
-toggle :: ReaderT Env (StateT State IO) ()
+toggle :: ReaderT Env (StateT FullState IO) ()
 toggle = playing %= not
 
 
-update :: Float -> ReaderT Env (StateT State IO) ()
+update :: Float -> ReaderT Env (StateT FullState IO) ()
 update dt = do
   state <- lift get
   when (state ^. playing) $ do
