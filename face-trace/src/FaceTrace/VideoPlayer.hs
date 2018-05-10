@@ -71,8 +71,8 @@ toggle :: ReaderT Env (StateT FullState IO) ()
 toggle = playing %= not
 
 
-update :: Float -> ReaderT Env (StateT FullState IO) ()
+update :: Seconds -> ReaderT Env (StateT FullState IO) ()
 update dt = do
   state <- lift get
   when (state ^. playing) $ do
-    timestamp += realToFrac dt
+    timestamp += dt

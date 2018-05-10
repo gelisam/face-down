@@ -120,7 +120,7 @@ react (EventKey (SpecialKey KeySpace) Down _ _) = togglePlaying
 react (EventMotion mousePos)                    = setMousePos mousePos
 react _                                         = pure ()
 
-update :: Float -> ReaderT Env (StateT State IO) ()
+update :: Seconds -> ReaderT Env (StateT State IO) ()
 update dt = do
   withFaceMarker  $ FaceMarker.update  dt
   withVideoPlayer $ VideoPlayer.update dt
@@ -137,4 +137,4 @@ runApp windowTitle filePath = do
          initialState
          (\state -> flip runReaderT env $ draw state)
          (\event -> execStateT $ flip runReaderT env $ react event)
-         (\dt    -> execStateT $ flip runReaderT env $ update dt)
+         (\dt    -> execStateT $ flip runReaderT env $ update $ realToFrac dt)

@@ -62,5 +62,5 @@ setMousePos pos = do
     pure pos
 
 
-update :: Float -> ReaderT Env (StateT FullState IO) ()
+update :: Seconds -> ReaderT Env (StateT FullState IO) ()
 update _ = pure ()
