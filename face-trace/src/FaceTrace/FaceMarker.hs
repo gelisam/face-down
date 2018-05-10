@@ -11,6 +11,7 @@ import Graphics.Gloss.Interface.IO.Game
 import FaceTrace.Graphics
 import FaceTrace.FaceState
 import FaceTrace.Size
+import FaceTrace.Types
 
 
 data Env = Env
@@ -22,7 +23,7 @@ data State t = State
   { _mousePos  :: Maybe (Float, Float)
   , _timestamp :: t
   }
-type FullState = State Double
+type FullState = State Timestamp
 makeLenses ''State
 
 

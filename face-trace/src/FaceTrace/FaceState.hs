@@ -10,16 +10,13 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 import Control.Monad.Extra
+import FaceTrace.Types
 
 
--- offset from top-left
-type Pos = (Int, Int)
-
--- seconds since the beginning of the movie
-type Timestamp = Double
+type FaceTimestamp = Timestamp
 
 data FaceState = FaceState
-  { _faceStateFacePositions    :: Map Timestamp Pos
+  { _faceStateFacePositions    :: Map FaceTimestamp Pos
   , _faceStateSlideTransitions :: Set Timestamp
   } 
 
@@ -28,29 +25,29 @@ makeLenses ''FaceState
 
 
 -- we want a face position every 2 seconds
-nearestFaceTimestamp :: Double -> Double
+nearestFaceTimestamp :: Timestamp -> FaceTimestamp
 nearestFaceTimestamp = (/ 2)
-                   >>> (round :: Double -> Int)
+                   >>> (round :: Timestamp -> Int)
                    >>> (* 2)
                    >>> fromIntegral
 
-nextFaceTimestamp :: Double -> Double
+nextFaceTimestamp :: Timestamp -> FaceTimestamp
 nextFaceTimestamp = (+ 2)
                 >>> nearestFaceTimestamp
 
-previousFaceTimestamp :: Double -> Double
+previousFaceTimestamp :: Timestamp -> FaceTimestamp
 previousFaceTimestamp = subtract 2
                     >>> max 0
                     >>> nearestFaceTimestamp
 
 
-getFacePositions :: Query FaceState (Map Timestamp Pos)
+getFacePositions :: Query FaceState (Map FaceTimestamp Pos)
 getFacePositions = view faceStateFacePositions
 
-insertFacePosition :: Timestamp -> Pos -> Update FaceState ()
+insertFacePosition :: FaceTimestamp -> Pos -> Update FaceState ()
 insertFacePosition t pos = faceStateFacePositions %= Map.insert t pos
 
-deleteFacePosition :: Timestamp -> Update FaceState ()
+deleteFacePosition :: FaceTimestamp -> Update FaceState ()
 deleteFacePosition t = faceStateFacePositions %= Map.delete t
 
 

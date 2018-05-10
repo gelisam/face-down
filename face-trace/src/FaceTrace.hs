@@ -13,6 +13,7 @@ import Graphics.Gloss.Interface.IO.Game
 import System.Exit
 
 import FaceTrace.Size
+import FaceTrace.Types
 import qualified FaceTrace.FaceMarker  as FaceMarker
 import qualified FaceTrace.VideoPlayer as VideoPlayer
 
@@ -25,7 +26,7 @@ data Env = Env
 makeLenses ''Env
 
 data State = State
-  { _timestamp               :: Double
+  { _timestamp               :: Timestamp
   , _partialStateFaceMarker  :: FaceMarker.State ()
   , _partialStateVideoPlayer :: VideoPlayer.State ()
   }

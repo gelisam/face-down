@@ -12,6 +12,7 @@ import Graphics.Gloss.Interface.IO.Game
 
 import FaceTrace.Graphics
 import FaceTrace.Size
+import FaceTrace.Types
 import FaceTrace.VideoLoader
 
 
@@ -25,7 +26,7 @@ data State t = State
   { _playing   :: Bool
   , _timestamp :: t
   }
-type FullState = State Double
+type FullState = State Timestamp
 makeLenses ''State
 
 

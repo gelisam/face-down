@@ -12,14 +12,15 @@ import Data.Maybe
 import qualified Data.Map.Strict as Map
 
 import FaceTrace.Frame
+import FaceTrace.Types
 import FaceTrace.VideoStream
 
 
 data VideoLoader = VideoLoader
   { _videoLoaderFirstFrameDropped :: TVar Bool
   , _videoLoaderLastFrameLoaded   :: TVar Bool
-  , _videoLoaderLoadedFrames      :: TVar (Map Double Frame)
-  , _videoLoaderPlayTime          :: TVar Double
+  , _videoLoaderLoadedFrames      :: TVar (Map Timestamp Frame)
+  , _videoLoaderPlayTime          :: TVar Timestamp
   , _videoLoaderLoadingThread     :: Async ()
   , _videoLoaderTrailingThread    :: Async ()
   , _videoLoaderVideoStream       :: TMVar VideoStream
@@ -29,7 +30,7 @@ makeLenses ''VideoLoader
 
 
 -- | Must be released with 'videoLoaderClose'.
-videoLoaderOpen :: FilePath -> Double -> Double -> IO VideoLoader
+videoLoaderOpen :: FilePath -> Seconds -> Seconds -> IO VideoLoader
 videoLoaderOpen filePath trailingDuration preloadDuration = do
   firstFrameDroppedTVar <- atomically $ newTVar False
   lastFrameLoadedTVar   <- atomically $ newTVar False
@@ -39,14 +40,14 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
     videoStream <- videoStreamOpen filePath
     atomically $ newTMVar videoStream
 
-  let firstLoadedFrameTimestamp :: STM (Maybe Double)
+  let firstLoadedFrameTimestamp :: STM (Maybe Timestamp)
       firstLoadedFrameTimestamp = do
         loadedFrames <- readTVar loadedFramesTVar
         case Map.lookupMin loadedFrames of
           Nothing -> pure Nothing
           Just (firstTimestamp, _) -> pure $ Just firstTimestamp
 
-  let secondLoadedFrameTimestamp :: STM (Maybe Double)
+  let secondLoadedFrameTimestamp :: STM (Maybe Timestamp)
       secondLoadedFrameTimestamp = do
         loadedFrames <- readTVar loadedFramesTVar
         firstLoadedFrameTimestamp >>= \case
@@ -56,7 +57,7 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
               Nothing -> pure Nothing
               Just (secondTimestamp, _) -> pure $ Just secondTimestamp
 
-  let lastLoadedFrameTimestamp :: STM (Maybe Double)
+  let lastLoadedFrameTimestamp :: STM (Maybe Timestamp)
       lastLoadedFrameTimestamp = do
         loadedFrames <- readTVar loadedFramesTVar
         pure $ fst <$> Map.lookupMax loadedFrames
@@ -147,7 +148,7 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
                      trailingThread
                      videoStreamTMVar
   where
-    infinity :: Double
+    infinity :: Timestamp
     infinity = 1/0
 
 videoLoaderClose :: VideoLoader -> IO ()
@@ -158,20 +159,20 @@ videoLoaderClose videoLoader = do
   cancel (view videoLoaderLoadingThread   videoLoader)
   cancel (view videoLoaderTrailingThread  videoLoader)
 
-withVideoLoader :: FilePath -> Double -> Double -> (VideoLoader -> IO a) -> IO a
+withVideoLoader :: FilePath -> Seconds -> Seconds -> (VideoLoader -> IO a) -> IO a
 withVideoLoader filePath trailingDuration preloadDuration
   = bracket (videoLoaderOpen filePath trailingDuration preloadDuration)
             videoLoaderClose
 
 
-setPlayTime :: VideoLoader -> Double -> STM ()
+setPlayTime :: VideoLoader -> Timestamp -> STM ()
 setPlayTime videoLoader t = writeTVar (view videoLoaderPlayTime videoLoader) t
 
 -- | A version of 'getPlayFrame' which only require part of a 'VideoLoader'.
 getPlayFrameInternal :: TVar Bool
                      -> TVar Bool
-                     -> TVar (Map Double Frame)
-                     -> TVar Double
+                     -> TVar (Map Timestamp Frame)
+                     -> TVar Timestamp
                      -> STM (Maybe (Maybe Frame))
 getPlayFrameInternal firstFrameDroppedTVar
                      lastFrameLoadedTVar

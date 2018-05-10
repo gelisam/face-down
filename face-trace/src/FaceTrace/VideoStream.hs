@@ -8,10 +8,11 @@ import Data.Maybe
 import Graphics.Gloss.Interface.IO.Animate
 
 import FaceTrace.Frame
+import FaceTrace.Types
 
 
 data VideoStream = VideoStream
-  { videoStreamNextFrameTime :: IO (Maybe (Frame, Double))
+  { videoStreamNextFrameTime :: IO (Maybe (Frame, Timestamp))
   , videoStreamClose         :: IO ()
   }
 
