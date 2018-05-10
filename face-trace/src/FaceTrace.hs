@@ -105,7 +105,7 @@ moveForwards = do
   then withVideoPlayer VideoPlayer.moveForwards
   else withFaceMarker FaceMarker.moveForwards
 
-setMousePos :: (Float, Float) -> ReaderT Env (StateT State IO) ()
+setMousePos :: Coord -> ReaderT Env (StateT State IO) ()
 setMousePos = withFaceMarker . FaceMarker.setMousePos
 
 togglePlaying :: ReaderT Env (StateT State IO) ()

@@ -20,7 +20,7 @@ data Env = Env
 makeLenses ''Env
 
 data State t = State
-  { _mousePos  :: Maybe (Float, Float)
+  { _mousePos  :: Maybe Coord
   , _timestamp :: t
   }
 type FullState = State Timestamp
@@ -51,7 +51,7 @@ moveBackwards = timestamp %= previousFaceTimestamp
 moveForwards :: ReaderT Env (StateT FullState IO) ()
 moveForwards = timestamp %= nextFaceTimestamp
 
-setMousePos :: (Float, Float) -> ReaderT Env (StateT FullState IO) ()
+setMousePos :: Coord -> ReaderT Env (StateT FullState IO) ()
 setMousePos pos = do
   env <- ask
   mousePos .= do
