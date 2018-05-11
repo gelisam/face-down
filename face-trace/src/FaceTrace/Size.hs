@@ -1,11 +1,13 @@
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TemplateHaskell #-}
 module FaceTrace.Size where
 
 import Control.Lens
+import Control.Monad.Reader
 import Data.Maybe
 import Data.Ratio
 import Graphics.Gloss.Data.Display
 
+import FaceTrace.Types
 import FaceTrace.VideoInfo
 
 
@@ -56,3 +58,19 @@ sizedDisplay windowTitle size
   = InWindow windowTitle
              (size ^. displayWidth, size ^. displayHeight)
              (10, 10)
+
+toCoord :: MonadReader Size m
+        => Pos -> m Coord
+toCoord (x,y) = do
+  size <- ask
+  pure (  fromIntegral (x - (size ^. pixelWidth)  `div` 2) * (size ^. scaleX)
+       , -fromIntegral (y - (size ^. pixelHeight) `div` 2) * (size ^. scaleY)
+       )
+
+toPos :: MonadReader Size m
+      => Coord -> m Pos
+toPos (x,y) = do
+  size <- ask
+  pure (  round (x / (size ^. scaleX)) + (size ^. pixelWidth)  `div` 2
+       , -round (y / (size ^. scaleY)) + (size ^. pixelHeight) `div` 2
+       )

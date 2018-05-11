@@ -20,8 +20,8 @@ data Env = Env
 makeLenses ''Env
 
 data State t = State
-  { _mousePos  :: Maybe Coord
-  , _timestamp :: t
+  { _mouseCoord :: Maybe Coord
+  , _timestamp  :: t
   }
 type FullState = State Timestamp
 makeLenses ''State
@@ -39,7 +39,7 @@ quit = pure ()
 
 draw :: FullState -> ReaderT Env IO Picture
 draw state = magnify size $ do
-  color (makeColor 0 0 0 0.5) <$> case state ^. mousePos of
+  color (makeColor 0 0 0 0.5) <$> case state ^. mouseCoord of
     Just (x,y) -> antiRectangle 200 150
               <&> translate x y
     Nothing    -> clear
@@ -54,7 +54,7 @@ moveForwards = timestamp %= nextFaceTimestamp
 setMousePos :: Coord -> ReaderT Env (StateT FullState IO) ()
 setMousePos pos = do
   env <- ask
-  mousePos .= do
+  mouseCoord .= do
     let ww = fromIntegral (env ^. size . displayWidth)
     let hh = fromIntegral (env ^. size . displayHeight)
     guard $ pointInBox pos (-ww / 2, -hh / 2)
