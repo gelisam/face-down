@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceTrace where
 
-import Control.Applicative
 import Control.Lens
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
@@ -12,6 +11,7 @@ import Data.Monoid
 import Graphics.Gloss.Interface.IO.Game
 import System.Exit
 
+import FaceTrace.FaceState
 import FaceTrace.Size
 import FaceTrace.Types
 import qualified FaceTrace.FaceMarker  as FaceMarker
@@ -76,11 +76,19 @@ quit = do
   liftIO exitSuccess
 
 
+isFaceMarkerEnabled :: State -> Bool
+isFaceMarkerEnabled state = not (state ^. stateVideoPlayer . VideoPlayer.playing)
+                         && state ^. timestamp == nearestFaceTimestamp (state ^. timestamp)
+
+
 draw :: State -> ReaderT Env IO Picture
-draw state = (magnify envVideoPlayer $ VideoPlayer.draw (state ^. stateVideoPlayer))
-        <<>> (magnify envFaceMarker  $ FaceMarker.draw  (state ^. stateFaceMarker))
-  where
-    (<<>>) = liftA2 (<>)
+draw state = do
+  videoPlayer <- magnify envVideoPlayer $ VideoPlayer.draw (state ^. stateVideoPlayer)
+  faceMarker <- if isFaceMarkerEnabled state
+                then magnify envFaceMarker  $ FaceMarker.draw  (state ^. stateFaceMarker)
+                else pure blank
+  pure (videoPlayer <> faceMarker)
+
 
 
 withFaceMarker :: ReaderT FaceMarker.Env (StateT FaceMarker.FullState IO) a
