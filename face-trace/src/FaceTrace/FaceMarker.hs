@@ -51,15 +51,15 @@ moveBackwards = timestamp %= previousFaceTimestamp
 moveForwards :: ReaderT Env (StateT FullState IO) ()
 moveForwards = timestamp %= nextFaceTimestamp
 
-setMousePos :: Coord -> ReaderT Env (StateT FullState IO) ()
-setMousePos pos = do
+setMouseCoord :: Coord -> ReaderT Env (StateT FullState IO) ()
+setMouseCoord coord = do
   env <- ask
   mouseCoord .= do
     let ww = fromIntegral (env ^. size . displayWidth)
     let hh = fromIntegral (env ^. size . displayHeight)
-    guard $ pointInBox pos (-ww / 2, -hh / 2)
-                           ( ww / 2,  hh / 2)
-    pure pos
+    guard $ pointInBox coord (-ww / 2, -hh / 2)
+                             ( ww / 2,  hh / 2)
+    pure coord
 
 
 update :: Seconds -> ReaderT Env (StateT FullState IO) ()

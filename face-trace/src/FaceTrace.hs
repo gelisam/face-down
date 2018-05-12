@@ -113,8 +113,8 @@ moveForwards = do
   then withVideoPlayer VideoPlayer.moveForwards
   else withFaceMarker FaceMarker.moveForwards
 
-setMousePos :: Coord -> ReaderT Env (StateT State IO) ()
-setMousePos = withFaceMarker . FaceMarker.setMousePos
+setMouseCoord :: Coord -> ReaderT Env (StateT State IO) ()
+setMouseCoord = withFaceMarker . FaceMarker.setMouseCoord
 
 togglePlaying :: ReaderT Env (StateT State IO) ()
 togglePlaying = withVideoPlayer VideoPlayer.toggle
@@ -125,7 +125,7 @@ react (EventKey (SpecialKey KeyEsc)   Down _ _) = hoist lift quit
 react (EventKey (SpecialKey KeyLeft)  Down _ _) = moveBackwards
 react (EventKey (SpecialKey KeyRight) Down _ _) = moveForwards
 react (EventKey (SpecialKey KeySpace) Down _ _) = togglePlaying
-react (EventMotion mousePos)                    = setMousePos mousePos
+react (EventMotion mouseCoord)                  = setMouseCoord mouseCoord
 react _                                         = pure ()
 
 update :: Seconds -> ReaderT Env (StateT State IO) ()
