@@ -11,7 +11,9 @@ import Control.Monad.Morph
 import Data.Acid (AcidState)
 import Data.Monoid
 import Graphics.Gloss.Interface.IO.Game
+import System.Directory
 import System.Exit
+import System.FilePath
 import qualified Data.Acid as Acid
 
 import FaceTrace.FaceState
@@ -22,10 +24,11 @@ import qualified FaceTrace.VideoPlayer as VideoPlayer
 
 
 data Env = Env
-  { _envAcidState   :: AcidState FaceState
-  , _envSize        :: Size
-  , _envFaceMarker  :: FaceMarker.Env
-  , _envVideoPlayer :: VideoPlayer.Env
+  { _acidState        :: AcidState FaceState
+  , _acidStateArchive :: FilePath
+  , _size             :: Size
+  , _envFaceMarker    :: FaceMarker.Env
+  , _envVideoPlayer   :: VideoPlayer.Env
   }
 makeLenses ''Env
 
@@ -71,11 +74,14 @@ withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 initEnv :: FilePath -> IO Env
 initEnv filePath = do
+  let acidStateDir      = filePath ++ ".face-trace"
+  let acidStateArchive_ = acidStateDir </> "Archive"
   acidState_ <- liftIO
-              $ Acid.openLocalStateFrom (filePath ++ ".face-trace")
+              $ Acid.openLocalStateFrom acidStateDir
                                         mempty
   size_ <- videoSize filePath
   Env <$> pure acidState_
+      <*> pure acidStateArchive_
       <*> pure size_
       <*> FaceMarker.initEnv acidState_ size_
       <*> VideoPlayer.initEnv size_ filePath
@@ -87,9 +93,14 @@ initState = State <$> pure 0
 
 quit :: ReaderT Env IO ()
 quit = do
+  env <- ask
   magnify envFaceMarker  FaceMarker.quit
   magnify envVideoPlayer VideoPlayer.quit
-  liftIO exitSuccess
+  liftIO $ Acid.createCheckpoint (env ^. acidState)
+  liftIO $ Acid.createArchive    (env ^. acidState)
+  liftIO $ Acid.closeAcidState   (env ^. acidState)
+  liftIO $ removeDirectoryRecursive (env ^. acidStateArchive)
+  liftIO $ exitSuccess
 
 
 isFaceMarkerEnabled :: State -> Bool
@@ -154,7 +165,7 @@ runApp windowTitle filePath = do
   env <- initEnv filePath
   initialState <- flip runReaderT env $ initState
 
-  playIO (sizedDisplay windowTitle (env ^. envSize))
+  playIO (sizedDisplay windowTitle (env ^. size))
          black
          30
          initialState
