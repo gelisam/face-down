@@ -1,8 +1,6 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceTrace.VideoPlayer where
 
-import Prelude hiding (init)
-
 import Control.Concurrent.STM
 import Control.Lens
 import Control.Monad
@@ -38,9 +36,6 @@ initEnv size_ filePath = Env size_
 
 initState :: t -> ReaderT Env IO (State t)
 initState t = pure $ State False t
-
-init :: ReaderT Env (StateT FullState IO) ()
-init = pure ()
 
 quit :: ReaderT Env IO ()
 quit = do

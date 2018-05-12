@@ -1,8 +1,6 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceTrace where
 
-import Prelude hiding (init)
-
 import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Class
@@ -87,11 +85,6 @@ initState = State <$> pure 0
                   <*> (magnify envFaceMarker  $ FaceMarker.initState  ())
                   <*> (magnify envVideoPlayer $ VideoPlayer.initState ())
 
-init :: ReaderT Env (StateT State IO) ()
-init = do
-  withFaceMarker  FaceMarker.init
-  withVideoPlayer VideoPlayer.init
-
 quit :: ReaderT Env IO ()
 quit = do
   magnify envFaceMarker  FaceMarker.quit
@@ -160,14 +153,11 @@ runApp :: String -> FilePath -> IO ()
 runApp windowTitle filePath = do
   env <- initEnv filePath
   initialState <- flip runReaderT env $ initState
-  initialState' <- flip execStateT initialState
-                 $ flip runReaderT env
-                 $ init
 
   playIO (sizedDisplay windowTitle (env ^. envSize))
          black
          30
-         initialState'
+         initialState
          (\state -> flip runReaderT env $ draw state)
          (\event -> execStateT $ flip runReaderT env $ react event)
          (\dt    -> execStateT $ flip runReaderT env $ update $ realToFrac dt)

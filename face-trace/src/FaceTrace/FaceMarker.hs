@@ -1,8 +1,6 @@
 {-# LANGUAGE PackageImports, TemplateHaskell #-}
 module FaceTrace.FaceMarker where
 
-import Prelude hiding (init)
-
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
@@ -46,9 +44,6 @@ initState t = do
   facePositions_ <- liftIO $ Acid.query (env ^. acidState) GetFacePositions
   pure $ State facePositions_ Nothing t
 
-init :: ReaderT Env (StateT FullState IO) ()
-init = loadFacePosition
-
 quit :: ReaderT Env IO ()
 quit = pure ()
 
@@ -64,13 +59,6 @@ draw state = magnify size $ do
               <&> translate x y
     Nothing    -> clear
 
-
-loadFacePosition :: ReaderT Env (StateT FullState IO) ()
-loadFacePosition = do
-  state <- lift get
-  whenJust (state ^. facePositions . at (state ^. timestamp)) $ \pos -> do
-    coord <- magnify size $ toCoord pos
-    mouseCoord .= Just coord
 
 overwriteFacePosition :: ReaderT Env (StateT FullState IO) ()
 overwriteFacePosition = do
@@ -92,13 +80,11 @@ moveBackwards :: ReaderT Env (StateT FullState IO) ()
 moveBackwards = do
   saveFacePosition
   timestamp %= previousFaceTimestamp
-  loadFacePosition
 
 moveForwards :: ReaderT Env (StateT FullState IO) ()
 moveForwards = do
   saveFacePosition
   timestamp %= nextFaceTimestamp
-  loadFacePosition
 
 setMouseCoord :: Coord -> ReaderT Env (StateT FullState IO) ()
 setMouseCoord coord = do
