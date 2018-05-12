@@ -4,6 +4,7 @@ module FaceTrace where
 import Prelude hiding (init)
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State (StateT, execStateT, get)
@@ -127,6 +128,12 @@ moveForwards = do
   then withVideoPlayer VideoPlayer.moveForwards
   else withFaceMarker FaceMarker.moveForwards
 
+overwriteFacePosition :: ReaderT Env (StateT State IO) ()
+overwriteFacePosition = do
+  state <- lift get
+  when (isFaceMarkerEnabled state) $ do
+    withFaceMarker FaceMarker.overwriteFacePosition
+
 setMouseCoord :: Coord -> ReaderT Env (StateT State IO) ()
 setMouseCoord = withFaceMarker . FaceMarker.setMouseCoord
 
@@ -135,12 +142,13 @@ togglePlaying = withVideoPlayer VideoPlayer.toggle
 
 
 react :: Event -> ReaderT Env (StateT State IO) ()
-react (EventKey (SpecialKey KeyEsc)   Down _ _) = hoist lift quit
-react (EventKey (SpecialKey KeyLeft)  Down _ _) = moveBackwards
-react (EventKey (SpecialKey KeyRight) Down _ _) = moveForwards
-react (EventKey (SpecialKey KeySpace) Down _ _) = togglePlaying
-react (EventMotion mouseCoord)                  = setMouseCoord mouseCoord
-react _                                         = pure ()
+react (EventKey (SpecialKey KeyEsc)      Down _ _) = hoist lift quit
+react (EventKey (SpecialKey KeyLeft)     Down _ _) = moveBackwards
+react (EventKey (SpecialKey KeyRight)    Down _ _) = moveForwards
+react (EventKey (SpecialKey KeySpace)    Down _ _) = togglePlaying
+react (EventKey (MouseButton LeftButton) Down _ _) = overwriteFacePosition
+react (EventMotion mouseCoord)                     = setMouseCoord mouseCoord
+react _                                            = pure ()
 
 update :: Seconds -> ReaderT Env (StateT State IO) ()
 update dt = do

@@ -55,7 +55,11 @@ quit = pure ()
 
 draw :: FullState -> ReaderT Env IO Picture
 draw state = magnify size $ do
-  color (makeColor 0 0 0 0.5) <$> case state ^. mouseCoord of
+  coord <- case state ^. facePositions . at (state ^. timestamp) of
+    Just pos -> Just <$> toCoord pos
+    Nothing  -> pure (state ^. mouseCoord)
+
+  color (makeColor 0 0 0 0.5) <$> case coord of
     Just (x,y) -> antiRectangle 200 150
               <&> translate x y
     Nothing    -> clear
@@ -68,14 +72,21 @@ loadFacePosition = do
     coord <- magnify size $ toCoord pos
     mouseCoord .= Just coord
 
-saveFacePosition :: ReaderT Env (StateT FullState IO) ()
-saveFacePosition = do
+overwriteFacePosition :: ReaderT Env (StateT FullState IO) ()
+overwriteFacePosition = do
   env <- ask
   state <- lift get
   whenJust (state ^. mouseCoord) $ \coord -> do
     pos <- magnify size $ toPos coord
     facePositions . at (state ^. timestamp) .= Just pos
     liftIO $ Acid.update (env ^. acidState) $ InsertFacePosition (state ^. timestamp) pos
+
+saveFacePosition :: ReaderT Env (StateT FullState IO) ()
+saveFacePosition = do
+  state <- lift get
+  case (state ^. facePositions . at (state ^. timestamp)) of
+    Nothing -> overwriteFacePosition
+    Just _  -> pure ()
 
 moveBackwards :: ReaderT Env (StateT FullState IO) ()
 moveBackwards = do
