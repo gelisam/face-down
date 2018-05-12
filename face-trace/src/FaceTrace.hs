@@ -1,15 +1,19 @@
 {-# LANGUAGE LambdaCase, TemplateHaskell #-}
 module FaceTrace where
 
+import Prelude hiding (init)
+
 import Control.Lens
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State (StateT, execStateT, get)
 import Control.Monad.IO.Class
 import Control.Monad.Morph
+import Data.Acid (AcidState)
 import Data.Monoid
 import Graphics.Gloss.Interface.IO.Game
 import System.Exit
+import qualified Data.Acid as Acid
 
 import FaceTrace.FaceState
 import FaceTrace.Size
@@ -19,7 +23,8 @@ import qualified FaceTrace.VideoPlayer as VideoPlayer
 
 
 data Env = Env
-  { _envSize        :: Size
+  { _envAcidState   :: AcidState FaceState
+  , _envSize        :: Size
   , _envFaceMarker  :: FaceMarker.Env
   , _envVideoPlayer :: VideoPlayer.Env
   }
@@ -56,18 +61,35 @@ stateVideoPlayer = lens get_ set_
               & timestamp               .~ (s ^. VideoPlayer.timestamp)
               & partialStateVideoPlayer .~ (s & VideoPlayer.timestamp .~ ())
 
+withFaceMarker :: ReaderT FaceMarker.Env (StateT FaceMarker.FullState IO) a
+               -> ReaderT Env (StateT State IO) a
+withFaceMarker = magnify envFaceMarker . zoom stateFaceMarker
+
+withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
+                -> ReaderT Env (StateT State IO) a
+withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
+
 
 initEnv :: FilePath -> IO Env
 initEnv filePath = do
+  acidState_ <- liftIO
+              $ Acid.openLocalStateFrom (filePath ++ ".face-trace")
+                                        mempty
   size_ <- videoSize filePath
-  Env <$> pure size_
-      <*> pure (FaceMarker.initEnv size_)
+  Env <$> pure acidState_
+      <*> pure size_
+      <*> FaceMarker.initEnv acidState_ size_
       <*> VideoPlayer.initEnv size_ filePath
 
-initState :: State
-initState = State 0
-                  (FaceMarker.initState ())
-                  (VideoPlayer.initState ())
+initState :: ReaderT Env IO State
+initState = State <$> pure 0
+                  <*> (magnify envFaceMarker  $ FaceMarker.initState  ())
+                  <*> (magnify envVideoPlayer $ VideoPlayer.initState ())
+
+init :: ReaderT Env (StateT State IO) ()
+init = do
+  withFaceMarker  FaceMarker.init
+  withVideoPlayer VideoPlayer.init
 
 quit :: ReaderT Env IO ()
 quit = do
@@ -90,14 +112,6 @@ draw state = do
   pure (videoPlayer <> faceMarker)
 
 
-
-withFaceMarker :: ReaderT FaceMarker.Env (StateT FaceMarker.FullState IO) a
-               -> ReaderT Env (StateT State IO) a
-withFaceMarker = magnify envFaceMarker . zoom stateFaceMarker
-
-withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
-                -> ReaderT Env (StateT State IO) a
-withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 moveBackwards :: ReaderT Env (StateT State IO) ()
 moveBackwards = do
@@ -137,12 +151,15 @@ update dt = do
 runApp :: String -> FilePath -> IO ()
 runApp windowTitle filePath = do
   env <- initEnv filePath
-  let initialState = initState
+  initialState <- flip runReaderT env $ initState
+  initialState' <- flip execStateT initialState
+                 $ flip runReaderT env
+                 $ init
 
   playIO (sizedDisplay windowTitle (env ^. envSize))
          black
          30
-         initialState
+         initialState'
          (\state -> flip runReaderT env $ draw state)
          (\event -> execStateT $ flip runReaderT env $ react event)
          (\dt    -> execStateT $ flip runReaderT env $ update $ realToFrac dt)

@@ -23,6 +23,12 @@ data FaceState = FaceState
 deriveSafeCopy 0 'base ''FaceState
 makeLenses ''FaceState
 
+instance Monoid FaceState where
+  mempty = FaceState mempty mempty
+  FaceState x1 y1 `mappend` FaceState x2 y2
+    = FaceState (x1 `mappend` x2)
+                (y1 `mappend` y2)
+
 
 -- we want a face position every 2 seconds
 nearestFaceTimestamp :: Timestamp -> FaceTimestamp

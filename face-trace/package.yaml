@@ -6,6 +6,7 @@ dependencies:
   - async
   - base
   - containers
+  - extra
   - ffmpeg-light
   - gloss
   - gloss-juicy
