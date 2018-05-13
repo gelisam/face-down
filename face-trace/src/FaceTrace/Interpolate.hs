@@ -5,6 +5,7 @@ import Data.Map.Strict (Map)
 import Data.Spline
 import Data.Traversable
 import Linear.V3
+import qualified Data.Map.Strict as Map
 
 import FaceTrace.FaceState
 import FaceTrace.Types
@@ -25,9 +26,15 @@ fromInterpolationPoint p = ( round (p ^. _x)
 
 interpolate :: Map FaceTimestamp Pos -> Double -> Maybe Pos
 interpolate facePositions timestamp = do
+  tMin <- fst <$> Map.lookupMin facePositions
+  tMax <- fst <$> Map.lookupMax facePositions
+
   -- a few keyframes around the sampled point are sufficient
-  let t0 = previousFaceTimestamp $ previousFaceTimestamp $ timestamp
-  let ts = take 6 $ iterate nextFaceTimestamp t0
+  let t0 = timestamp
+         & previousFaceTimestamp
+         & previousFaceTimestamp
+         & max tMin
+  let ts = take 6 $ iterate (min tMax . nextFaceTimestamp) t0
 
   keys <- for ts $ \t -> do
     coord <- facePositions ^. at t
