@@ -65,7 +65,7 @@ draw state = do
 
 drawInterpolated :: FullState -> ReaderT Env IO Picture
 drawInterpolated state = do
-  case interpolate (state ^. facePositions) (state ^. timestamp) of
+  case followFace (state ^. facePositions) (state ^. timestamp) of
     Just pos -> do
       coord <- magnify size $ toCoord pos
       drawAt $ Just coord

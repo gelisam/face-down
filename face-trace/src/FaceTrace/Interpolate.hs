@@ -42,3 +42,9 @@ interpolate facePositions timestamp = do
   let spline_ = spline (^. _t) keys
   point <- sample (^. _t) spline_ timestamp
   pure $ fromInterpolationPoint point
+
+followFace :: Map FaceTimestamp Pos -> Double -> Maybe Pos
+followFace facePositions t = do
+  -- add a bit of lag to make it look like the cameraman is reacting to the
+  -- speaker's movements instead of anticipating it.
+  interpolate facePositions (max 0 (t - 0.5))
