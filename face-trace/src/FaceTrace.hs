@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE LambdaCase, MultiWayIf, TemplateHaskell #-}
 module FaceTrace where
 
 import Control.Lens
@@ -111,11 +111,13 @@ isFaceMarkerEnabled state = not (state ^. stateVideoPlayer . VideoPlayer.playing
 draw :: State -> ReaderT Env IO Picture
 draw state = do
   videoPlayer <- magnify envVideoPlayer $ VideoPlayer.draw (state ^. stateVideoPlayer)
-  faceMarker <- if isFaceMarkerEnabled state
-                then magnify envFaceMarker  $ FaceMarker.draw  (state ^. stateFaceMarker)
-                else pure blank
+  faceMarker <- if | state ^. stateVideoPlayer . VideoPlayer.playing
+                     -> magnify envFaceMarker $ FaceMarker.drawInterpolated (state ^. stateFaceMarker)
+                   | isFaceMarkerEnabled state
+                     -> magnify envFaceMarker  $ FaceMarker.draw  (state ^. stateFaceMarker)
+                   | otherwise
+                     -> pure blank
   pure (videoPlayer <> faceMarker)
-
 
 
 moveBackwards :: ReaderT Env (StateT State IO) ()

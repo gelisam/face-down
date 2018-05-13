@@ -13,9 +13,11 @@ dependencies:
   - gloss
   - gloss-juicy
   - lens
+  - linear
   - mmorph
   - mtl
   - safecopy
+  - smoothie
   - stm
   - transformers
 

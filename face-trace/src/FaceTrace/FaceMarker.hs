@@ -16,6 +16,7 @@ import qualified Data.Acid as Acid
 
 import FaceTrace.Graphics
 import FaceTrace.FaceState
+import FaceTrace.Interpolate
 import FaceTrace.Size
 import FaceTrace.Types
 
@@ -48,16 +49,27 @@ quit :: ReaderT Env IO ()
 quit = pure ()
 
 
-draw :: FullState -> ReaderT Env IO Picture
-draw state = magnify size $ do
-  coord <- case state ^. facePositions . at (state ^. timestamp) of
-    Just pos -> Just <$> toCoord pos
-    Nothing  -> pure (state ^. mouseCoord)
-
-  color (makeColor 0 0 0 0.5) <$> case coord of
+drawAt :: Maybe Coord -> ReaderT Env IO Picture
+drawAt maybeCoord = magnify size $ do
+  color (makeColor 0 0 0 0.5) <$> case maybeCoord of
     Just (x,y) -> antiRectangle 200 150
               <&> translate x y
     Nothing    -> clear
+
+draw :: FullState -> ReaderT Env IO Picture
+draw state = do
+  coord <- case state ^. facePositions . at (state ^. timestamp) of
+    Just pos -> magnify size $ Just <$> toCoord pos
+    Nothing  -> pure (state ^. mouseCoord)
+  drawAt coord
+
+drawInterpolated :: FullState -> ReaderT Env IO Picture
+drawInterpolated state = do
+  case interpolate (state ^. facePositions) (state ^. timestamp) of
+    Just pos -> do
+      coord <- magnify size $ toCoord pos
+      drawAt $ Just coord
+    Nothing -> pure blank
 
 
 overwriteFacePosition :: ReaderT Env (StateT FullState IO) ()
