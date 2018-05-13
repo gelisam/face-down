@@ -11,24 +11,22 @@ import Control.Monad.Morph
 import Data.Acid (AcidState)
 import Data.Monoid
 import Graphics.Gloss.Interface.IO.Game
-import System.Directory
 import System.Exit
-import System.FilePath
-import qualified Data.Acid as Acid
 
 import FaceTrace.FaceState
 import FaceTrace.Size
 import FaceTrace.Types
+import qualified Data.Acid.Extra as Acid
 import qualified FaceTrace.FaceMarker  as FaceMarker
 import qualified FaceTrace.VideoPlayer as VideoPlayer
 
 
 data Env = Env
-  { _acidState        :: AcidState FaceState
-  , _acidStateArchive :: FilePath
-  , _size             :: Size
-  , _envFaceMarker    :: FaceMarker.Env
-  , _envVideoPlayer   :: VideoPlayer.Env
+  { _acidState      :: AcidState FaceState
+  , _acidStateDir   :: FilePath
+  , _size           :: Size
+  , _envFaceMarker  :: FaceMarker.Env
+  , _envVideoPlayer :: VideoPlayer.Env
   }
 makeLenses ''Env
 
@@ -74,14 +72,11 @@ withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 initEnv :: FilePath -> IO Env
 initEnv filePath = do
-  let acidStateDir      = filePath ++ ".face-trace"
-  let acidStateArchive_ = acidStateDir </> "Archive"
-  acidState_ <- liftIO
-              $ Acid.openLocalStateFrom acidStateDir
-                                        mempty
+  let acidStateDir_ = faceStateDir filePath
+  acidState_ <- liftIO $ Acid.load acidStateDir_ mempty
   size_ <- videoSize filePath
   Env <$> pure acidState_
-      <*> pure acidStateArchive_
+      <*> pure acidStateDir_
       <*> pure size_
       <*> FaceMarker.initEnv acidState_ size_
       <*> VideoPlayer.initEnv size_ filePath
@@ -96,10 +91,7 @@ quit = do
   env <- ask
   magnify envFaceMarker  FaceMarker.quit
   magnify envVideoPlayer VideoPlayer.quit
-  liftIO $ Acid.createCheckpoint (env ^. acidState)
-  liftIO $ Acid.createArchive    (env ^. acidState)
-  liftIO $ Acid.closeAcidState   (env ^. acidState)
-  liftIO $ removeDirectoryRecursive (env ^. acidStateArchive)
+  liftIO $ Acid.consolidate (env ^. acidStateDir) (env ^. acidState)
   liftIO $ exitSuccess
 
 

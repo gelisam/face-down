@@ -29,6 +29,9 @@ instance Monoid FaceState where
     = FaceState (x1 `mappend` x2)
                 (y1 `mappend` y2)
 
+faceStateDir :: FilePath -> FilePath
+faceStateDir = (++ ".face-trace")
+
 
 -- we want a face position every 2 seconds
 nearestFaceTimestamp :: Timestamp -> FaceTimestamp
