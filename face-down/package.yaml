@@ -1,8 +1,11 @@
 name: face-down
 
 dependencies:
+  - acid-state
   - base
+  - face-trace
   - ffmpeg-light
+  - gloss-rendering
 
 ghc-options:
   - -Wall
@@ -14,3 +17,6 @@ executables:
   face-down:
     main: main.hs
     source-dirs: app
+    dependencies:
+      - face-trace
+      - optparse-generic

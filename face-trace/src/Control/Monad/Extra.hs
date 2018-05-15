@@ -1,6 +1,7 @@
-module Control.Monad.Extra ((>>>), (>=>), (>&>)) where
+module Control.Monad.Extra ((>>>), (<&>), (>=>), (>&>)) where
 
 import Control.Category ((>>>))
+import Control.Lens ((<&>))
 import Control.Monad ((>=>))
 
 
