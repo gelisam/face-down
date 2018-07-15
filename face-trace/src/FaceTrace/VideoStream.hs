@@ -2,33 +2,31 @@
 module FaceTrace.VideoStream where
 
 import Codec.FFmpeg
-import Control.Exception
 import Control.Lens
 import Data.Maybe
 import Graphics.Gloss.Interface.IO.Animate
 
 import FaceTrace.Frame
+import FaceTrace.ReloadableRef
 import FaceTrace.Types
 
 
 data VideoStream = VideoStream
   { videoStreamNextFrameTime :: IO (Maybe (Frame, Timestamp))
-  , videoStreamClose         :: IO ()
   }
 
 videoStreamNextFrame :: VideoStream -> IO (Maybe Frame)
 videoStreamNextFrame videoStream = over _Just fst <$> videoStreamNextFrameTime videoStream
 
--- | Must be released with 'videoStreamClose'
-videoStreamOpen :: FilePath -> IO VideoStream
-videoStreamOpen = fmap (uncurry VideoStream)
-                . imageReaderTime
-                . File
-
 withVideoStream :: FilePath
-                -> (VideoStream -> IO a)
+                -> (ReloadableRef VideoStream -> IO a)
                 -> IO a
-withVideoStream filePath = bracket (videoStreamOpen filePath) videoStreamClose
+withVideoStream filePath = withReloadableRef' load
+  where
+    load :: IO (VideoStream, IO ())
+    load = do
+      (nextFrameTime, unload) <- imageReaderTime (File filePath)
+      pure (VideoStream nextFrameTime, unload)
 
 
 playVideoStream :: String -> VideoStream -> IO ()

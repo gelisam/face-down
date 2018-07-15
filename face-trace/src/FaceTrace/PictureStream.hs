@@ -1,11 +1,11 @@
 module FaceTrace.PictureStream where
 
-import Control.Exception
 import Control.Lens
 import Data.Maybe
 import Graphics.Gloss.Interface.IO.Animate
 
 import FaceTrace.Frame
+import FaceTrace.ReloadableRef
 import FaceTrace.Types
 import FaceTrace.VideoInfo
 import FaceTrace.VideoStream
@@ -15,45 +15,37 @@ data PictureStream = PictureStream
   { pictureStreamWidth         :: Int
   , pictureStreamHeight        :: Int
   , pictureStreamNextFrameTime :: IO (Maybe (Picture, Timestamp))
-  , pictureStreamClose         :: IO ()
   }
 
 
 -- | Must be released with 'pictureStreamClose'
-pictureStreamOpen :: FilePath -> IO PictureStream
-pictureStreamOpen filePath = do
+withPictureStream :: FilePath -> (PictureStream -> IO a) -> IO a
+withPictureStream filePath body = do
   (pixelWidth, pixelHeight) <- videoDimentions filePath
   pixelAspectRatio <- videoPixelAspectRatio filePath -- width:height
                   <&> fromMaybe 1
-  videoStream <- videoStreamOpen filePath
+  withVideoStream filePath $ \reloadableVideoStream -> do
+    -- stretch the image up, not down
+    let (displayWidth, displayHeight) =
+          if pixelAspectRatio > 0
+          then (round (pixelAspectRatio * fromIntegral pixelWidth), pixelHeight)
+          else (pixelWidth, round (fromIntegral pixelHeight / pixelAspectRatio))
 
-  -- stretch the image up, not down
-  let (displayWidth, displayHeight) =
-        if pixelAspectRatio > 0
-        then (round (pixelAspectRatio * fromIntegral pixelWidth), pixelHeight)
-        else (pixelWidth, round (fromIntegral pixelHeight / pixelAspectRatio))
+    let scaleX :: Float
+        scaleX = fromIntegral displayWidth / fromIntegral pixelWidth
 
-  let scaleX :: Float
-      scaleX = fromIntegral displayWidth / fromIntegral pixelWidth
+    let scaleY :: Float
+        scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
 
-  let scaleY :: Float
-      scaleY = fromIntegral displayHeight / fromIntegral pixelHeight
+    let nextFrameTime :: IO (Maybe (Picture, Timestamp))
+        nextFrameTime = do
+          videoStream <- readReloadableRef reloadableVideoStream
+          over (_Just . _1) (scale scaleX scaleY . framePicture)
+                        <$> videoStreamNextFrameTime videoStream
 
-  let nextFrameTime :: IO (Maybe (Picture, Timestamp))
-      nextFrameTime = over (_Just . _1)
-                           (scale scaleX scaleY . framePicture)
-                  <$> videoStreamNextFrameTime videoStream
-
-  pure $ PictureStream displayWidth
-                       displayHeight
-                       nextFrameTime
-                       (videoStreamClose videoStream)
-
-withPictureStream :: FilePath
-                  -> (PictureStream -> IO a)
-                  -> IO a
-withPictureStream filePath = bracket (pictureStreamOpen filePath)
-                                     pictureStreamClose
+    body $ PictureStream displayWidth
+                         displayHeight
+                         nextFrameTime
 
 
 pictureStreamNextFrame :: PictureStream -> IO (Maybe Picture)

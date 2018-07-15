@@ -45,9 +45,6 @@ initState t = do
   facePositions_ <- liftIO $ Acid.query (env ^. acidState) GetFacePositions
   pure $ State facePositions_ Nothing t
 
-quit :: ReaderT Env IO ()
-quit = pure ()
-
 
 drawAt :: Maybe Coord -> ReaderT Env IO Picture
 drawAt maybeCoord = magnify size $ do

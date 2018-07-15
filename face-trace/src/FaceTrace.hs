@@ -16,6 +16,8 @@ import System.Exit
 import FaceTrace.FaceState
 import FaceTrace.Size
 import FaceTrace.Types
+import FaceTrace.VideoLoader
+import FaceTrace.VideoStream
 import qualified Data.Acid.Extra as Acid
 import qualified FaceTrace.FaceMarker  as FaceMarker
 import qualified FaceTrace.VideoPlayer as VideoPlayer
@@ -70,8 +72,8 @@ withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
 withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 
-initEnv :: FilePath -> IO Env
-initEnv filePath = do
+initEnv :: FilePath -> VideoLoader -> IO Env
+initEnv filePath videoLoader = do
   let acidStateDir_ = faceStateDir filePath
   acidState_ <- liftIO $ Acid.load acidStateDir_ mempty
   size_ <- videoSize filePath
@@ -79,7 +81,7 @@ initEnv filePath = do
       <*> pure acidStateDir_
       <*> pure size_
       <*> FaceMarker.initEnv acidState_ size_
-      <*> VideoPlayer.initEnv size_ filePath
+      <*> pure (VideoPlayer.initEnv size_ videoLoader)
 
 initState :: ReaderT Env IO State
 initState = State <$> pure 0
@@ -89,8 +91,6 @@ initState = State <$> pure 0
 quit :: ReaderT Env IO ()
 quit = do
   env <- ask
-  magnify envFaceMarker  FaceMarker.quit
-  magnify envVideoPlayer VideoPlayer.quit
   liftIO $ Acid.consolidate (env ^. acidStateDir) (env ^. acidState)
   liftIO $ exitSuccess
 
@@ -156,13 +156,21 @@ update dt = do
 
 runApp :: String -> FilePath -> IO ()
 runApp windowTitle filePath = do
-  env <- initEnv filePath
-  initialState <- flip runReaderT env $ initState
+  withVideoStream filePath $ \reloadableStream -> do
+    withVideoLoader reloadableStream trailingDuration preloadDuration $ \videoLoader -> do
+      env <- initEnv filePath videoLoader
+      initialState <- flip runReaderT env $ initState
 
-  playIO (sizedDisplay windowTitle (env ^. size))
-         black
-         30
-         initialState
-         (\state -> flip runReaderT env $ draw state)
-         (\event -> execStateT $ flip runReaderT env $ react event)
-         (\dt    -> execStateT $ flip runReaderT env $ update $ realToFrac dt)
+      playIO (sizedDisplay windowTitle (env ^. size))
+             black
+             30
+             initialState
+             (\state -> flip runReaderT env $ draw state)
+             (\event -> execStateT $ flip runReaderT env $ react event)
+             (\dt    -> execStateT $ flip runReaderT env $ update $ realToFrac dt)
+  where
+    trailingDuration :: Seconds
+    trailingDuration = 2
+
+    preloadDuration :: Seconds
+    preloadDuration = 4

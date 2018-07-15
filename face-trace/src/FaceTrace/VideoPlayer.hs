@@ -30,17 +30,11 @@ type FullState = State Timestamp
 makeLenses ''State
 
 
-initEnv :: Size -> FilePath -> IO Env
-initEnv size_ filePath = Env size_
-                     <$> videoLoaderOpen filePath 2 4
+initEnv :: Size -> VideoLoader -> Env
+initEnv = Env
 
 initState :: t -> ReaderT Env IO (State t)
 initState t = pure $ State False t
-
-quit :: ReaderT Env IO ()
-quit = do
-  env <- ask
-  lift $ videoLoaderClose (env ^. videoLoader)
 
 
 draw :: FullState -> ReaderT Env IO Picture

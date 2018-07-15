@@ -3,7 +3,6 @@ module FaceTrace.VideoLoader where
 
 import Control.Applicative
 import Control.Concurrent.Async
-import Control.Exception
 import Control.Lens
 import Control.Monad
 import Control.Concurrent.STM
@@ -12,6 +11,7 @@ import Data.Maybe
 import qualified Data.Map.Strict as Map
 
 import FaceTrace.Frame
+import FaceTrace.ReloadableRef
 import FaceTrace.Types
 import FaceTrace.VideoStream
 
@@ -29,15 +29,14 @@ data VideoLoader = VideoLoader
 makeLenses ''VideoLoader
 
 
--- | Must be released with 'videoLoaderClose'.
-videoLoaderOpen :: FilePath -> Seconds -> Seconds -> IO VideoLoader
-videoLoaderOpen filePath trailingDuration preloadDuration = do
+withVideoLoader :: ReloadableRef VideoStream -> Seconds -> Seconds -> (VideoLoader -> IO a) -> IO a
+withVideoLoader reloadableRef trailingDuration preloadDuration body = do
   firstFrameDroppedTVar <- atomically $ newTVar False
   lastFrameLoadedTVar   <- atomically $ newTVar False
   loadedFramesTVar      <- atomically $ newTVar mempty
   playTimeTVar          <- atomically $ newTVar 0
   videoStreamTMVar <- do
-    videoStream <- videoStreamOpen filePath
+    videoStream <- readReloadableRef reloadableRef
     atomically $ newTMVar videoStream
 
   let firstLoadedFrameTimestamp :: STM (Maybe Timestamp)
@@ -106,63 +105,54 @@ videoLoaderOpen filePath trailingDuration preloadDuration = do
 
   -- try to keep the last loaded frame >= playTime + preloadDuration,
   -- but reset whenever playTime < last dropped frame
-  loadingThread <- async $ forever $ do
-    -- block until we need to load the next frame or reset
-    (shouldReset, videoStream) <- atomically $ do
-      (,) <$> blockUntilResetOrLoadFrame
-          <*> takeTMVar videoStreamTMVar
+  let loadingThreadLogic :: IO void
+      loadingThreadLogic = forever $ do
+        -- block until we need to load the next frame or reset
+        (shouldReset, videoStream) <- atomically $ do
+          (,) <$> blockUntilResetOrLoadFrame
+              <*> takeTMVar videoStreamTMVar
 
-    -- load the next frame or reset
-    if shouldReset
-    then do
-      videoStreamClose videoStream
-      videoStream' <- videoStreamOpen filePath
-      atomically $ do
-        writeTVar  firstFrameDroppedTVar False
-        writeTVar  lastFrameLoadedTVar   False
-        writeTVar  loadedFramesTVar      mempty
-        putTMVar   videoStreamTMVar      videoStream'
-    else do
-      maybeFrameTime <- videoStreamNextFrameTime videoStream
-      atomically $ do
-        putTMVar videoStreamTMVar videoStream
-        case maybeFrameTime of
-          Just (frame, time) -> modifyTVar loadedFramesTVar
-                              $ Map.insert time frame
-          Nothing -> writeTVar lastFrameLoadedTVar True
+        -- load the next frame or reset
+        if shouldReset
+        then do
+          reloadReloadableRef reloadableRef
+          videoStream' <- readReloadableRef reloadableRef
+          atomically $ do
+            writeTVar  firstFrameDroppedTVar False
+            writeTVar  lastFrameLoadedTVar   False
+            writeTVar  loadedFramesTVar      mempty
+            putTMVar   videoStreamTMVar      videoStream'
+        else do
+          maybeFrameTime <- videoStreamNextFrameTime videoStream
+          atomically $ do
+            putTMVar videoStreamTMVar videoStream
+            case maybeFrameTime of
+              Just (frame, time) -> modifyTVar loadedFramesTVar
+                                  $ Map.insert time frame
+              Nothing -> writeTVar lastFrameLoadedTVar True
 
   -- drop frames older than playTime - trailingDuration
-  trailingThread <- async $ forever $ atomically $ do
-    -- block until we need to drop the oldest frame
-    blockUntilDropFrame
+  let trailingThreadLogic :: IO void
+      trailingThreadLogic = forever $ atomically $ do
+        -- block until we need to drop the oldest frame
+        blockUntilDropFrame
 
-    -- drop the oldest frame
-    writeTVar  firstFrameDroppedTVar True
-    modifyTVar loadedFramesTVar      Map.deleteMin
+        -- drop the oldest frame
+        writeTVar  firstFrameDroppedTVar True
+        modifyTVar loadedFramesTVar      Map.deleteMin
 
-  pure $ VideoLoader firstFrameDroppedTVar
-                     lastFrameLoadedTVar
-                     loadedFramesTVar
-                     playTimeTVar
-                     loadingThread
-                     trailingThread
-                     videoStreamTMVar
+  withAsync loadingThreadLogic $ \loadingThread -> do
+    withAsync trailingThreadLogic $ \trailingThread -> do
+      body $ VideoLoader firstFrameDroppedTVar
+                         lastFrameLoadedTVar
+                         loadedFramesTVar
+                         playTimeTVar
+                         loadingThread
+                         trailingThread
+                         videoStreamTMVar
   where
     infinity :: Timestamp
     infinity = 1/0
-
-videoLoaderClose :: VideoLoader -> IO ()
-videoLoaderClose videoLoader = do
-  videoStream <- atomically $ takeTMVar (view videoLoaderVideoStream videoLoader)
-  videoStreamClose videoStream
-
-  cancel (view videoLoaderLoadingThread   videoLoader)
-  cancel (view videoLoaderTrailingThread  videoLoader)
-
-withVideoLoader :: FilePath -> Seconds -> Seconds -> (VideoLoader -> IO a) -> IO a
-withVideoLoader filePath trailingDuration preloadDuration
-  = bracket (videoLoaderOpen filePath trailingDuration preloadDuration)
-            videoLoaderClose
 
 
 setPlayTime :: VideoLoader -> Timestamp -> STM ()
