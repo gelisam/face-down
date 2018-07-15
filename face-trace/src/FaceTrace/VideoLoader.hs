@@ -23,7 +23,6 @@ data VideoLoader = VideoLoader
   , _videoLoaderPlayTime          :: TVar Timestamp
   , _videoLoaderLoadingThread     :: Async ()
   , _videoLoaderTrailingThread    :: Async ()
-  , _videoLoaderVideoStream       :: TMVar VideoStream
   }
 
 makeLenses ''VideoLoader
@@ -35,9 +34,6 @@ withVideoLoader reloadableRef trailingDuration preloadDuration body = do
   lastFrameLoadedTVar   <- atomically $ newTVar False
   loadedFramesTVar      <- atomically $ newTVar mempty
   playTimeTVar          <- atomically $ newTVar 0
-  videoStreamTMVar <- do
-    videoStream <- readReloadableRef reloadableRef
-    atomically $ newTMVar videoStream
 
   let firstLoadedFrameTimestamp :: STM (Maybe Timestamp)
       firstLoadedFrameTimestamp = do
@@ -108,24 +104,20 @@ withVideoLoader reloadableRef trailingDuration preloadDuration body = do
   let loadingThreadLogic :: IO void
       loadingThreadLogic = forever $ do
         -- block until we need to load the next frame or reset
-        (shouldReset, videoStream) <- atomically $ do
-          (,) <$> blockUntilResetOrLoadFrame
-              <*> takeTMVar videoStreamTMVar
+        shouldReset <- atomically blockUntilResetOrLoadFrame
 
         -- load the next frame or reset
         if shouldReset
         then do
           reloadReloadableRef reloadableRef
-          videoStream' <- readReloadableRef reloadableRef
           atomically $ do
             writeTVar  firstFrameDroppedTVar False
             writeTVar  lastFrameLoadedTVar   False
             writeTVar  loadedFramesTVar      mempty
-            putTMVar   videoStreamTMVar      videoStream'
         else do
+          videoStream <- readReloadableRef reloadableRef
           maybeFrameTime <- videoStreamNextFrameTime videoStream
           atomically $ do
-            putTMVar videoStreamTMVar videoStream
             case maybeFrameTime of
               Just (frame, time) -> modifyTVar loadedFramesTVar
                                   $ Map.insert time frame
@@ -149,7 +141,6 @@ withVideoLoader reloadableRef trailingDuration preloadDuration body = do
                          playTimeTVar
                          loadingThread
                          trailingThread
-                         videoStreamTMVar
   where
     infinity :: Timestamp
     infinity = 1/0
