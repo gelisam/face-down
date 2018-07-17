@@ -6,6 +6,8 @@ import Control.Lens
 import Control.Monad
 import Data.IORef
 
+import Control.Lens.SetterM
+
 
 data ReloadableRef a = ReloadableRef
   { _reloadableRefDeref  :: IO a
@@ -15,14 +17,15 @@ data ReloadableRef a = ReloadableRef
 
 makeLenses ''ReloadableRef
 
+reloadableRefValue :: SetterM IO (ReloadableRef a) (ReloadableRef b) a b
+reloadableRefValue = reloadableRefDeref `thenSetterM` monadicSetter
+
+
 readReloadableRef :: ReloadableRef a -> IO a
 readReloadableRef = view reloadableRefDeref
 
 reloadReloadableRef :: ReloadableRef a -> IO ()
 reloadReloadableRef = view reloadableRefReload
-
-mapReloadableRefIO :: (a -> IO b) -> ReloadableRef a -> ReloadableRef b
-mapReloadableRefIO f = over reloadableRefDeref (>>= f)
 
 
 withReloadableRef :: forall a r
