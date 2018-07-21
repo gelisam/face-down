@@ -6,6 +6,7 @@ dependencies:
   - face-trace
   - ffmpeg-light
   - gloss-rendering
+  - lens
 
 ghc-options:
   - -Wall

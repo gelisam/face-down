@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Codec.FFmpeg
+import Control.Lens
 import Options.Generic
 
-import FaceTrace.PictureStream
+import FaceTrace.Stream
 
 
 main :: IO ()
@@ -10,4 +11,6 @@ main = do
   initFFmpeg
   filePath <- getRecord "face-down"
   withPictureStream filePath $ \pictureStream -> do
-    playPictureStream "face-down" pictureStream
+    let scale = 640 / fromIntegral (view streamWidth pictureStream)
+        scaledPictureStream = scalePictureStream scale scale pictureStream
+    playPictureStream "face-down" scaledPictureStream
