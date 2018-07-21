@@ -4,7 +4,7 @@ module FaceTrace.Stream where
 import Codec.FFmpeg
 import Control.Lens
 import Data.Maybe
-import Graphics.Gloss
+import Graphics.Gloss.Interface.IO.Animate
 
 import Control.Lens.SetterM
 import Control.Monad.Extra
@@ -81,3 +81,13 @@ scalePictureStream scaleX scaleY = streamWidth           %~ scaleInt scaleX
   where
     scaleInt :: Float -> Int -> Int
     scaleInt factor = round . (* factor) . fromIntegral
+
+
+playPictureStream :: String -> Stream Picture -> IO ()
+playPictureStream windowTitle pictureStream = do
+  let width  = view streamWidth  pictureStream
+      height = view streamHeight pictureStream
+  animateFixedIO (InWindow windowTitle (width, height) (10, 10))
+                 black
+                 (\_ -> fromMaybe mempty <$> nextFrame pictureStream)
+                 mempty
