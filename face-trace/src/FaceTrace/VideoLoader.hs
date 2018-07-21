@@ -10,16 +10,14 @@ import Data.Map.Strict (Map)
 import Data.Maybe
 import qualified Data.Map.Strict as Map
 
-import FaceTrace.Frame
-import FaceTrace.ReloadableRef
+import FaceTrace.Stream
 import FaceTrace.Types
-import FaceTrace.VideoStream
 
 
-data VideoLoader = VideoLoader
+data VideoLoader frame = VideoLoader
   { _videoLoaderFirstFrameDropped :: TVar Bool
   , _videoLoaderLastFrameLoaded   :: TVar Bool
-  , _videoLoaderLoadedFrames      :: TVar (Map Timestamp Frame)
+  , _videoLoaderLoadedFrames      :: TVar (Map Timestamp frame)
   , _videoLoaderPlayTime          :: TVar Timestamp
   , _videoLoaderLoadingThread     :: Async ()
   , _videoLoaderTrailingThread    :: Async ()
@@ -28,8 +26,9 @@ data VideoLoader = VideoLoader
 makeLenses ''VideoLoader
 
 
-withVideoLoader :: ReloadableRef VideoStream -> Seconds -> Seconds -> (VideoLoader -> IO a) -> IO a
-withVideoLoader reloadableRef trailingDuration preloadDuration body = do
+withVideoLoader :: Stream frame -> Seconds -> Seconds
+                -> (VideoLoader frame -> IO a) -> IO a
+withVideoLoader frameStream trailingDuration preloadDuration body = do
   firstFrameDroppedTVar <- atomically $ newTVar False
   lastFrameLoadedTVar   <- atomically $ newTVar False
   loadedFramesTVar      <- atomically $ newTVar mempty
@@ -109,14 +108,13 @@ withVideoLoader reloadableRef trailingDuration preloadDuration body = do
         -- load the next frame or reset
         if shouldReset
         then do
-          reloadReloadableRef reloadableRef
+          reloadStream frameStream
           atomically $ do
             writeTVar  firstFrameDroppedTVar False
             writeTVar  lastFrameLoadedTVar   False
             writeTVar  loadedFramesTVar      mempty
         else do
-          videoStream <- readReloadableRef reloadableRef
-          maybeFrameTime <- videoStreamNextFrameTime videoStream
+          maybeFrameTime <- nextFrameTime frameStream
           atomically $ do
             case maybeFrameTime of
               Just (frame, time) -> modifyTVar loadedFramesTVar
@@ -146,15 +144,15 @@ withVideoLoader reloadableRef trailingDuration preloadDuration body = do
     infinity = 1/0
 
 
-setPlayTime :: VideoLoader -> Timestamp -> STM ()
+setPlayTime :: VideoLoader frame -> Timestamp -> STM ()
 setPlayTime videoLoader t = writeTVar (view videoLoaderPlayTime videoLoader) t
 
 -- | A version of 'getPlayFrame' which only require part of a 'VideoLoader'.
 getPlayFrameInternal :: TVar Bool
                      -> TVar Bool
-                     -> TVar (Map Timestamp Frame)
+                     -> TVar (Map Timestamp frame)
                      -> TVar Timestamp
-                     -> STM (Maybe (Maybe Frame))
+                     -> STM (Maybe (Maybe frame))
 getPlayFrameInternal firstFrameDroppedTVar
                      lastFrameLoadedTVar
                      loadedFramesTVar
@@ -177,7 +175,7 @@ getPlayFrameInternal firstFrameDroppedTVar
 
 -- | @Nothing@ if we don't have enough information yet. Will eventually return
 -- @Just@. @Just Nothing@ if playTime is after the video's last frame.
-getPlayFrame :: VideoLoader -> STM (Maybe (Maybe Frame))
+getPlayFrame :: VideoLoader frame -> STM (Maybe (Maybe frame))
 getPlayFrame videoLoader = do
   getPlayFrameInternal (view videoLoaderFirstFrameDropped videoLoader)
                        (view videoLoaderLastFrameLoaded   videoLoader)

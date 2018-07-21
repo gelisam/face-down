@@ -10,6 +10,7 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State (StateT, get)
 import Graphics.Gloss.Interface.IO.Game
 
+import FaceTrace.Frame (Frame)
 import FaceTrace.Graphics
 import FaceTrace.Size
 import FaceTrace.Types
@@ -18,7 +19,7 @@ import FaceTrace.VideoLoader
 
 data Env = Env
   { _size        :: Size
-  , _videoLoader :: VideoLoader
+  , _videoLoader :: VideoLoader Frame
   }
 makeLenses ''Env
 
@@ -30,7 +31,7 @@ type FullState = State Timestamp
 makeLenses ''State
 
 
-initEnv :: Size -> VideoLoader -> Env
+initEnv :: Size -> VideoLoader Frame -> Env
 initEnv = Env
 
 initState :: t -> ReaderT Env IO (State t)

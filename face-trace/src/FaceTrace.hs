@@ -14,10 +14,11 @@ import Graphics.Gloss.Interface.IO.Game
 import System.Exit
 
 import FaceTrace.FaceState
+import FaceTrace.Frame
 import FaceTrace.Size
+import FaceTrace.Stream
 import FaceTrace.Types
 import FaceTrace.VideoLoader
-import FaceTrace.VideoStream
 import qualified Data.Acid.Extra as Acid
 import qualified FaceTrace.FaceMarker  as FaceMarker
 import qualified FaceTrace.VideoPlayer as VideoPlayer
@@ -72,7 +73,7 @@ withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
 withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 
-initEnv :: FilePath -> VideoLoader -> IO Env
+initEnv :: FilePath -> VideoLoader Frame -> IO Env
 initEnv filePath videoLoader = do
   let acidStateDir_ = faceStateDir filePath
   acidState_ <- liftIO $ Acid.load acidStateDir_ mempty
@@ -156,8 +157,8 @@ update dt = do
 
 runApp :: String -> FilePath -> IO ()
 runApp windowTitle filePath = do
-  withVideoStream filePath $ \reloadableStream -> do
-    withVideoLoader reloadableStream trailingDuration preloadDuration $ \videoLoader -> do
+  withFrameStream filePath $ \frameStream -> do
+    withVideoLoader frameStream trailingDuration preloadDuration $ \videoLoader -> do
       env <- initEnv filePath videoLoader
       initialState <- flip runReaderT env $ initState
 

@@ -36,6 +36,9 @@ nextFrame :: Stream a -> IO (Maybe a)
 nextFrame stream = nextFrameTime stream
                  & mapped . _Just %~ fst
 
+reloadStream :: Stream a -> IO ()
+reloadStream = reloadReloadableRef . view streamReloadableRef
+
 
 -- The raw, unscaled frames
 withFrameStream :: FilePath -> (Stream Frame -> IO a) -> IO a
