@@ -11,10 +11,11 @@ import Control.Monad.Morph
 import Data.Acid (AcidState)
 import Data.Monoid
 import Graphics.Gloss.Interface.IO.Game
+import Linear
 import System.Exit
 
+import FaceTrace.Coord
 import FaceTrace.FaceState
-import FaceTrace.Frame
 import FaceTrace.Size
 import FaceTrace.Stream
 import FaceTrace.Types
@@ -27,7 +28,6 @@ import qualified FaceTrace.VideoPlayer as VideoPlayer
 data Env = Env
   { _acidState      :: AcidState FaceState
   , _acidStateDir   :: FilePath
-  , _size           :: Size
   , _envFaceMarker  :: FaceMarker.Env
   , _envVideoPlayer :: VideoPlayer.Env
   }
@@ -73,16 +73,14 @@ withVideoPlayer :: ReaderT VideoPlayer.Env (StateT VideoPlayer.FullState IO) a
 withVideoPlayer = magnify envVideoPlayer . zoom stateVideoPlayer
 
 
-initEnv :: FilePath -> VideoLoader Frame -> IO Env
-initEnv filePath videoLoader = do
+initEnv :: FilePath -> Size -> VideoLoader Picture -> IO Env
+initEnv filePath size videoLoader = do
   let acidStateDir_ = faceStateDir filePath
   acidState_ <- liftIO $ Acid.load acidStateDir_ mempty
-  size_ <- videoSize filePath
   Env <$> pure acidState_
       <*> pure acidStateDir_
-      <*> pure size_
-      <*> FaceMarker.initEnv acidState_ size_
-      <*> pure (VideoPlayer.initEnv size_ videoLoader)
+      <*> FaceMarker.initEnv acidState_ size
+      <*> pure (VideoPlayer.initEnv size videoLoader)
 
 initState :: ReaderT Env IO State
 initState = State <$> pure 0
@@ -146,7 +144,7 @@ react (EventKey (SpecialKey KeyLeft)     Down _ _) = moveBackwards
 react (EventKey (SpecialKey KeyRight)    Down _ _) = moveForwards
 react (EventKey (SpecialKey KeySpace)    Down _ _) = togglePlaying
 react (EventKey (MouseButton LeftButton) Down _ _) = overwriteFacePosition
-react (EventMotion mouseCoord)                     = setMouseCoord mouseCoord
+react (EventMotion (x,y))                          = setMouseCoord (Coord (V2 x y))
 react _                                            = pure ()
 
 update :: Seconds -> ReaderT Env (StateT State IO) ()
@@ -157,12 +155,17 @@ update dt = do
 
 runApp :: String -> FilePath -> IO ()
 runApp windowTitle filePath = do
-  withFrameStream filePath $ \frameStream -> do
-    withVideoLoader frameStream trailingDuration preloadDuration $ \videoLoader -> do
-      env <- initEnv filePath videoLoader
+  withPictureStream filePath $ \pictureStream -> do
+    let scale_ = 640 / pictureStream ^. streamWidth
+        scaledPictureStream = scalePictureStream scale_ scale_ pictureStream
+    withVideoLoader scaledPictureStream trailingDuration preloadDuration $ \videoLoader -> do
+      env <- initEnv filePath (scaledPictureStream ^. streamSize) videoLoader
       initialState <- flip runReaderT env $ initState
 
-      playIO (sizedDisplay windowTitle (env ^. size))
+      let w = round $ scaledPictureStream ^. streamWidth
+          h = round $ scaledPictureStream ^. streamHeight
+          display = InWindow windowTitle (w, h) (10, 10)
+      playIO display
              black
              30
              initialState

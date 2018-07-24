@@ -10,7 +10,6 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.State (StateT, get)
 import Graphics.Gloss.Interface.IO.Game
 
-import FaceTrace.Frame (Frame)
 import FaceTrace.Graphics
 import FaceTrace.Size
 import FaceTrace.Types
@@ -18,8 +17,8 @@ import FaceTrace.VideoLoader
 
 
 data Env = Env
-  { _size        :: Size
-  , _videoLoader :: VideoLoader Frame
+  { _displaySize :: Size
+  , _videoLoader :: VideoLoader Picture
   }
 makeLenses ''Env
 
@@ -31,7 +30,7 @@ type FullState = State Timestamp
 makeLenses ''State
 
 
-initEnv :: Size -> VideoLoader Frame -> Env
+initEnv :: Size -> VideoLoader Picture -> Env
 initEnv = Env
 
 initState :: t -> ReaderT Env IO (State t)
@@ -43,9 +42,9 @@ draw state = do
   env <- ask
   liftIO $ atomically $ setPlayTime (env ^. videoLoader) (state ^. timestamp)
   (liftIO $ atomically $ getPlayFrame (env ^. videoLoader)) >>= \case
-    Nothing           -> magnify size $ color white <$> textPicture "Loading..."
-    Just Nothing      -> magnify size $ color white <$> textPicture "Done!"
-    Just (Just frame) -> magnify size $ framePicture frame
+    Nothing           -> magnify displaySize $ color white <$> textPicture "Loading..."
+    Just Nothing      -> magnify displaySize $ color white <$> textPicture "Done!"
+    Just (Just frame) -> pure frame
 
 
 moveBackwards :: ReaderT Env (StateT FullState IO) ()

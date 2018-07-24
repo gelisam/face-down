@@ -1,76 +1,43 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase, TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts, TemplateHaskell #-}
 module FaceTrace.Size where
 
 import Control.Lens
 import Control.Monad.Reader
-import Data.Maybe
-import Data.Ratio
-import Graphics.Gloss.Data.Display
+import Linear
 
-import FaceTrace.Types
-import FaceTrace.VideoInfo
+import FaceTrace.Coord
+import FaceTrace.Rel
 
 
-data Size = Size
-  { _pixelWidth    :: Int
-  , _pixelHeight   :: Int
-  , _displayWidth  :: Int
-  , _displayHeight :: Int
-  , _scaleX        :: Float  -- displayWidth  / pixelWidth
-  , _scaleY        :: Float  -- displayHeight / pixelHeight
-  }
+-- in pixels
+newtype Size = Size { unSize :: V2 Float }
+  deriving (Eq, Show)
 
-makeLenses ''Size
+makePrisms ''Size
 
+sizeWidth :: Lens' Size Float
+sizeWidth = _Size . _x
 
-videoSize :: FilePath -> IO Size
-videoSize filePath = do
-  (pixelWidth_, pixelHeight_) <- videoDimentions filePath
-  pixelAspectRatio <- videoPixelAspectRatio filePath
-                  <&> fromMaybe 1
-  let displayAspectRatio :: Ratio Int
-      displayAspectRatio = (pixelWidth_  * numerator pixelAspectRatio)
-                         % (pixelHeight_ * denominator pixelAspectRatio)
+sizeHeight :: Lens' Size Float
+sizeHeight = _Size . _y
 
-      displayWidth_ :: Int
-      displayWidth_ = div pixelWidth_ <$> [1..]
-                    & dropWhile (> 1024)
-                    & head
-
-      displayHeight_ :: Int
-      displayHeight_ = round (fromIntegral displayWidth_ / displayAspectRatio)
-
-      scaleX_ :: Float
-      scaleX_ = fromIntegral displayWidth_ / fromIntegral pixelWidth_
-
-      scaleY_ :: Float
-      scaleY_ = fromIntegral displayHeight_ / fromIntegral pixelHeight_
-
-  pure $ Size pixelWidth_
-              pixelHeight_
-              displayWidth_
-              displayHeight_
-              scaleX_
-              scaleY_
-
-sizedDisplay :: String -> Size -> Display
-sizedDisplay windowTitle size
-  = InWindow windowTitle
-             (size ^. displayWidth, size ^. displayHeight)
-             (10, 10)
 
 toCoord :: MonadReader Size m
-        => Pos -> m Coord
-toCoord (x,y) = do
+        => Rel -> m Coord
+toCoord (Rel v) = do
   size <- ask
-  pure (  fromIntegral (x - (size ^. pixelWidth)  `div` 2) * (size ^. scaleX)
-       , -fromIntegral (y - (size ^. pixelHeight) `div` 2) * (size ^. scaleY)
-       )
+  pure $ v
+       & subtract (V2 0.5 0.5)  -- (0, 0) in the center
+       & (* V2 1 (-1))          -- +Y pointing up
+       & (* (unSize size / 2))
+       & Coord
 
-toPos :: MonadReader Size m
-      => Coord -> m Pos
-toPos (x,y) = do
+toRel :: MonadReader Size m
+      => Coord -> m Rel
+toRel (Coord v) = do
   size <- ask
-  pure (  round (x / (size ^. scaleX)) + (size ^. pixelWidth)  `div` 2
-       , -round (y / (size ^. scaleY)) + (size ^. pixelHeight) `div` 2
-       )
+  pure $ v
+       & (/ (unSize size / 2))
+       & (* V2 1 (-1))     -- +Y pointing down
+       & (+ (V2 0.5 0.5))  -- (0, 0) in the top left
+       & Rel

@@ -11,6 +11,6 @@ main = do
   initFFmpeg
   filePath <- getRecord "face-down"
   withPictureStream filePath $ \pictureStream -> do
-    let scale = 640 / fromIntegral (view streamWidth pictureStream)
+    let scale = 640 / pictureStream ^. streamWidth
         scaledPictureStream = scalePictureStream scale scale pictureStream
     playPictureStream "face-down" scaledPictureStream

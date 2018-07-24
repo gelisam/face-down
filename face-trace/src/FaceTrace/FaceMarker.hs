@@ -11,60 +11,63 @@ import Data.Acid (AcidState)
 import Data.Map.Strict (Map)
 import Graphics.Gloss.Data.Point
 import Graphics.Gloss.Interface.IO.Game
+import Linear
 import "extra" Control.Monad.Extra (whenJust)
 import qualified Data.Acid as Acid
 
 import FaceTrace.Graphics
 import FaceTrace.FaceState
 import FaceTrace.Interpolate
+import FaceTrace.Coord
+import FaceTrace.Rel
 import FaceTrace.Size
 import FaceTrace.Types
 
 
 data Env = Env
-  { _acidState :: AcidState FaceState
-  , _size      :: Size
+  { _acidState   :: AcidState FaceState
+  , _displaySize :: Size
   }
 makeLenses ''Env
 
 data State t = State
-  { _facePositions :: Map FaceTimestamp Pos
-  , _mouseCoord    :: Maybe Coord
-  , _timestamp     :: t
+  { _relFacePositions :: Map FaceTimestamp Rel
+  , _mouseCoord       :: Maybe Coord
+  , _timestamp        :: t
   }
 type FullState = State Timestamp
 makeLenses ''State
 
 
 initEnv :: AcidState FaceState -> Size -> IO Env
-initEnv acidState_ size_ = pure $ Env acidState_ size_
+initEnv acidState_ displaySize_ = pure $ Env acidState_ displaySize_
 
 initState :: t -> ReaderT Env IO (State t)
 initState t = do
   env <- ask
-  facePositions_ <- liftIO $ Acid.query (env ^. acidState) GetFacePositions
-  pure $ State facePositions_ Nothing t
+  facePositions <- liftIO $ Acid.query (env ^. acidState) GetFacePositions
+  pure $ State (fromFacePosition <$> facePositions) Nothing t
 
 
 drawAt :: Maybe Coord -> ReaderT Env IO Picture
-drawAt maybeCoord = magnify size $ do
+drawAt maybeCoord = magnify displaySize $ do
   color (makeColor 0 0 0 0.5) <$> case maybeCoord of
-    Just (x,y) -> antiRectangle 200 150
-              <&> translate x y
-    Nothing    -> clear
+    Just (Coord (V2 x y)) -> antiRectangle 200 150
+                         <&> translate x y
+    Nothing               -> clear
 
 draw :: FullState -> ReaderT Env IO Picture
 draw state = do
-  coord <- case state ^. facePositions . at (state ^. timestamp) of
-    Just pos -> magnify size $ Just <$> toCoord pos
+  coord <- case state ^. relFacePositions . at (state ^. timestamp) of
+    Just rel -> magnify displaySize $ Just <$> toCoord rel
     Nothing  -> pure (state ^. mouseCoord)
   drawAt coord
 
 drawInterpolated :: FullState -> ReaderT Env IO Picture
 drawInterpolated state = do
-  case followFace (state ^. facePositions) (state ^. timestamp) of
-    Just pos -> do
-      coord <- magnify size $ toCoord pos
+  case followFace (state ^. relFacePositions) (state ^. timestamp) of
+    Just rel -> do
+      coord <- magnify displaySize $ toCoord rel
       drawAt $ Just coord
     Nothing -> pure blank
 
@@ -74,14 +77,16 @@ overwriteFacePosition = do
   env <- ask
   state <- lift get
   whenJust (state ^. mouseCoord) $ \coord -> do
-    pos <- magnify size $ toPos coord
-    facePositions . at (state ^. timestamp) .= Just pos
-    liftIO $ Acid.update (env ^. acidState) $ InsertFacePosition (state ^. timestamp) pos
+    rel <- magnify displaySize $ toRel coord
+    relFacePositions . at (state ^. timestamp) .= Just rel
+    let t       = state ^. timestamp
+        facePos = toFacePosition rel
+    liftIO $ Acid.update (env ^. acidState) $ InsertFacePosition t facePos
 
 saveFacePosition :: ReaderT Env (StateT FullState IO) ()
 saveFacePosition = do
   state <- lift get
-  case (state ^. facePositions . at (state ^. timestamp)) of
+  case (state ^. relFacePositions . at (state ^. timestamp)) of
     Nothing -> overwriteFacePosition
     Just _  -> pure ()
 
@@ -99,10 +104,10 @@ setMouseCoord :: Coord -> ReaderT Env (StateT FullState IO) ()
 setMouseCoord coord = do
   env <- ask
   mouseCoord .= do
-    let ww = fromIntegral (env ^. size . displayWidth)
-    let hh = fromIntegral (env ^. size . displayHeight)
-    guard $ pointInBox coord (-ww / 2, -hh / 2)
-                             ( ww / 2,  hh / 2)
+    let ww = env ^. displaySize . sizeWidth
+    let hh = env ^. displaySize . sizeHeight
+    guard $ pointInBox (toPoint coord) (-ww / 2, -hh / 2)
+                                       ( ww / 2,  hh / 2)
     pure coord
 
 

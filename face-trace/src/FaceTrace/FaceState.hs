@@ -6,17 +6,28 @@ import Data.Acid
 import Data.Map.Strict (Map)
 import Data.SafeCopy
 import Data.Set (Set)
+import Linear
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 import Control.Monad.Extra
+import FaceTrace.Rel
 import FaceTrace.Types
 
 
+-- simple types, because writing a SafeCopy instance for Rel is too hard
+type FacePosition  = (Float, Float)
 type FaceTimestamp = Timestamp
 
+toFacePosition :: Rel -> FacePosition
+toFacePosition (Rel (V2 x y)) = (x, y)
+
+fromFacePosition :: FacePosition -> Rel
+fromFacePosition (x, y) = Rel (V2 x y)
+
+
 data FaceState = FaceState
-  { _faceStateFacePositions    :: Map FaceTimestamp Pos
+  { _faceStateFacePositions    :: Map FaceTimestamp FacePosition
   , _faceStateSlideTransitions :: Set Timestamp
   } 
 
@@ -50,10 +61,10 @@ previousFaceTimestamp = subtract 2
                     >>> nearestFaceTimestamp
 
 
-getFacePositions :: Query FaceState (Map FaceTimestamp Pos)
+getFacePositions :: Query FaceState (Map FaceTimestamp FacePosition)
 getFacePositions = view faceStateFacePositions
 
-insertFacePosition :: FaceTimestamp -> Pos -> Update FaceState ()
+insertFacePosition :: FaceTimestamp -> FacePosition -> Update FaceState ()
 insertFacePosition t pos = faceStateFacePositions %= Map.insert t pos
 
 deleteFacePosition :: FaceTimestamp -> Update FaceState ()

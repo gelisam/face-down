@@ -4,11 +4,11 @@ import Control.Lens
 import Data.Map.Strict (Map)
 import Data.Spline
 import Data.Traversable
-import Linear.V3
+import Linear
 import qualified Data.Map.Strict as Map
 
 import FaceTrace.FaceState
-import FaceTrace.Types
+import FaceTrace.Rel
 
 
 type InterpolationPoint = V3 Double
@@ -16,18 +16,17 @@ type InterpolationPoint = V3 Double
 _t :: Lens' InterpolationPoint Double
 _t = _z
 
-toInterpolationPoint :: Double -> Pos -> InterpolationPoint
-toInterpolationPoint t (x,y) = V3 (realToFrac x) (realToFrac y) t
+toInterpolationPoint :: Double -> Rel -> InterpolationPoint
+toInterpolationPoint t (Rel (V2 x y)) = V3 (realToFrac x) (realToFrac y) t
 
-fromInterpolationPoint :: InterpolationPoint -> Pos
-fromInterpolationPoint p = ( round (p ^. _x)
-                           , round (p ^. _y)
-                           )
+fromInterpolationPoint :: InterpolationPoint -> Rel
+fromInterpolationPoint p = Rel (V2 (realToFrac (p ^. _x))
+                                   (realToFrac (p ^. _y)))
 
-interpolate :: Map FaceTimestamp Pos -> Double -> Maybe Pos
-interpolate facePositions timestamp = do
-  tMin <- fst <$> Map.lookupMin facePositions
-  tMax <- fst <$> Map.lookupMax facePositions
+interpolate :: Map FaceTimestamp Rel -> Double -> Maybe Rel
+interpolate relFacePositions timestamp = do
+  tMin <- fst <$> Map.lookupMin relFacePositions
+  tMax <- fst <$> Map.lookupMax relFacePositions
 
   -- a few keyframes around the sampled point are sufficient
   let t0 = timestamp
@@ -37,14 +36,14 @@ interpolate facePositions timestamp = do
   let ts = take 6 $ iterate (min tMax . nextFaceTimestamp) t0
 
   keys <- for ts $ \t -> do
-    coord <- facePositions ^. at t
+    coord <- relFacePositions ^. at t
     pure $ Cosine $ toInterpolationPoint t coord
   let spline_ = spline (^. _t) keys
-  point <- sample (^. _t) spline_ timestamp
-  pure $ fromInterpolationPoint point
+  point_ <- sample (^. _t) spline_ timestamp
+  pure $ fromInterpolationPoint point_
 
-followFace :: Map FaceTimestamp Pos -> Double -> Maybe Pos
-followFace facePositions t = do
+followFace :: Map FaceTimestamp Rel -> Double -> Maybe Rel
+followFace relFacePositions t = do
   -- add a bit of lag to make it look like the cameraman is reacting to the
   -- speaker's movements instead of anticipating it.
-  interpolate facePositions (max 0 (t - 0.5))
+  interpolate relFacePositions (max 0 (t - 0.5))
