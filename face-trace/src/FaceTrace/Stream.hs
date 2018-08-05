@@ -61,7 +61,6 @@ withFrameStream filePath body = do
 withPictureStream :: FilePath -> (Stream Picture -> IO a) -> IO a
 withPictureStream filePath body = do
   pixelAspectRatio <- videoPixelAspectRatio filePath -- width:height
-                  <&> fromMaybe 1
   withFrameStream filePath $ \frameStream -> do
     let pixelWidth, pixelHeight :: Float
         pixelWidth  = view streamWidth  frameStream
