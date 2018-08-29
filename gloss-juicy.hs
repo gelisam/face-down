@@ -13,7 +13,8 @@ main = do
 
 
 displayPic :: Picture -> IO ()
-displayPic p@(Bitmap width height _ _) = display (InWindow "Image Viewer" (width, height) (10, 10))
+displayPic p@(Bitmap dta) = display (InWindow "Image Viewer" (width, height) (10, 10))
                                                  white
                                                  p
+  where (width,height) = bitmapSize dta
 displayPic _ = error "only the Bitmap constructor should be used here"
