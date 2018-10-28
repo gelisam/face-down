@@ -1,9 +1,12 @@
+{-# LANGUAGE LambdaCase #-}
 module FaceTrace.VideoInfo where
 
 import Codec.FFmpeg
 import Codec.FFmpeg.Probe
 import Control.Monad.IO.Class
 import Data.Ratio (Ratio, (%))
+
+import Control.Monad.Extra
 
 
 -- | (width, height)
@@ -21,11 +24,9 @@ videoPixelAspectRatio filePath = do
     withStream 0 $ do
       Just avCodecContext <- codecContext
 
-      rawAspectRatio <- liftIO $ getAspectRatio avCodecContext
-
-      -- 0 means "unknown", so we default to 1, meaning "square pixels"
-      if numerator rawAspectRatio == 0
-      then pure 1
-      else pure ( fromIntegral (numerator   rawAspectRatio)
-                % fromIntegral (denomenator rawAspectRatio)
-                )
+      -- default to 1, meaning "square pixels"
+      liftIO $ getAspectRatio avCodecContext <&> \case
+        Nothing -> 1
+        Just aspectRatio -> ( fromIntegral (numerator   aspectRatio)
+                            % fromIntegral (denomenator aspectRatio)
+                            )
