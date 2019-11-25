@@ -10,21 +10,21 @@ import qualified Graphics.Gloss.Export.Gif as Export
 import qualified Data.Active.Extra as Active
 
 
-renderGif
+writeGif
   :: FilePath
   -> Size
   -> Active Picture
   -> IO ()
-renderGif filePath size = do
-  Active.onActive (renderImage filePath size)
-                  (renderLoop  filePath size)
+writeGif filePath size = do
+  Active.onActive (writeImage filePath size)
+                  (writeLoop  filePath size)
 
-renderImage
+writeImage
   :: FilePath
   -> Size
   -> Picture
   -> IO ()
-renderImage filePath size picture = do
+writeImage filePath size picture = do
   Export.exportPicturesToGif
     0
     Export.LoopingNever
@@ -34,12 +34,12 @@ renderImage filePath size picture = do
     (const picture)
     [0]
 
-renderLoop
+writeLoop
   :: FilePath
   -> Size
   -> Dynamic Picture
   -> IO ()
-renderLoop filePath size dynamic = do
+writeLoop filePath size dynamic = do
   Export.exportPicturesToGif
     (ceiling centisecondsPerFrame)  -- at least 1
     Export.LoopingForever
