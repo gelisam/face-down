@@ -6,6 +6,7 @@ import Graphics.Gloss (Color, Picture)
 import Graphics.Gloss.Export.Gif
 import Graphics.Gloss.Export.Image
 import qualified Data.Active as Active
+import qualified Graphics.Gloss as Gloss
 
 
 timestamps
@@ -19,15 +20,14 @@ timestamps dynamic
 renderGif
   :: FilePath
   -> Size
-  -> Color
   -> Dynamic Picture
   -> IO ()
-renderGif filePath size bg dynamic = do
+renderGif filePath size dynamic = do
   exportPicturesToGif
     (ceiling centisecondsPerFrame)  -- at least 1
     LoopingForever
     size
-    bg
+    Gloss.white
     filePath
     animation
     timestampsToEvaluate
