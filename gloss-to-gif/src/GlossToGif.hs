@@ -1,20 +1,14 @@
 module GlossToGif where
 
-import Data.Active (Dynamic, Era, Time)
+import Data.Active (Dynamic)
 import Graphics.Gloss (Picture)
 import Graphics.Gloss.Export.Image (Size)
 import qualified Data.Active as Active
 import qualified Graphics.Gloss as Gloss
 import qualified Graphics.Gloss.Export.Gif as Export
 
+import qualified Data.Active.Extra as Active
 
-timestamps
-  :: Dynamic a -> Dynamic (Time Rational)
-timestamps dynamic
-  = Active.mkDynamic (Active.start era) (Active.end era) id
-  where
-    era :: Era Rational
-    era = Active.era dynamic
 
 renderGif
   :: FilePath
@@ -48,5 +42,5 @@ renderGif filePath size dynamic = do
       = Active.simulate fps
       . Active.fromDynamic
       . fmap realToFrac
-      . timestamps
+      . Active.timestamps
       $ dynamic
