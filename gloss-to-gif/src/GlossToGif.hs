@@ -2,11 +2,11 @@
 module GlossToGif where
 
 import Data.Active (Dynamic, Era, Time)
-import Graphics.Gloss (Color, Picture)
-import Graphics.Gloss.Export.Gif
-import Graphics.Gloss.Export.Image
+import Graphics.Gloss (Picture)
+import Graphics.Gloss.Export.Image (Size)
 import qualified Data.Active as Active
 import qualified Graphics.Gloss as Gloss
+import qualified Graphics.Gloss.Export.Gif as Export
 
 
 timestamps
@@ -23,9 +23,9 @@ renderGif
   -> Dynamic Picture
   -> IO ()
 renderGif filePath size dynamic = do
-  exportPicturesToGif
+  Export.exportPicturesToGif
     (ceiling centisecondsPerFrame)  -- at least 1
-    LoopingForever
+    Export.LoopingForever
     size
     Gloss.white
     filePath
