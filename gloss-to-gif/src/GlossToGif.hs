@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module GlossToGif where
 
 import Data.Active (Dynamic, Era, Time)
