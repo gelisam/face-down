@@ -10,7 +10,7 @@ import GlossToGif
 main
   :: IO ()
 main = do
-  renderGif "out.gif" (300, 300) active
+  writeGif "out.gif" (300, 300) active
 
 
 sine
