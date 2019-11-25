@@ -19,14 +19,13 @@ timestamps dynamic
 renderGif
   :: FilePath
   -> Size
-  -> GifLooping
   -> Color
   -> Dynamic Picture
   -> IO ()
-renderGif filePath size gifLooping bg dynamic = do
+renderGif filePath size bg dynamic = do
   exportPicturesToGif
     (ceiling centisecondsPerFrame)  -- at least 1
-    gifLooping
+    LoopingForever
     size
     bg
     filePath

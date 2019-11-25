@@ -4,7 +4,6 @@ module Main where
 import Data.Active
 import Data.Functor.Apply
 import Graphics.Gloss
-import Graphics.Gloss.Export.Gif
 
 import GlossToGif
 
@@ -12,7 +11,7 @@ import GlossToGif
 main
   :: IO ()
 main = do
-  renderGif "out.gif" (300, 300) LoopingForever white dynamic
+  renderGif "out.gif" (300, 300) white dynamic
 
 
 sine
