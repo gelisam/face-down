@@ -1,3 +1,6 @@
 resolver: lts-12.21
 packages:
 - gloss-to-gif
+
+extra-deps:
+- gloss-export-0.1.0.2
