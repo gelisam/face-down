@@ -19,12 +19,11 @@ timestamps dynamic
 renderGif
   :: FilePath
   -> Size
-  -> Rational  -- ^ frames per second
   -> GifLooping
   -> Color
   -> Dynamic Picture
   -> IO ()
-renderGif filePath size fps gifLooping bg dynamic = do
+renderGif filePath size gifLooping bg dynamic = do
   exportPicturesToGif
     (ceiling centisecondsPerFrame)  -- at least 1
     gifLooping
@@ -34,6 +33,9 @@ renderGif filePath size fps gifLooping bg dynamic = do
     animation
     timestampsToEvaluate
   where
+    fps :: Rational
+    fps = 25
+
     centisecondsPerFrame :: Rational
     centisecondsPerFrame
       = 100 / fps
