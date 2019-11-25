@@ -12,7 +12,7 @@ import GlossToGif
 main
   :: IO ()
 main = do
-  renderGif "out.gif" (300, 300) 30 LoopingForever white dynamic
+  renderGif "out.gif" (300, 300) LoopingForever white dynamic
 
 
 sine
