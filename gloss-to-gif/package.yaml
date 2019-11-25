@@ -1,10 +1,21 @@
 name: gloss-to-gif
 
 dependencies:
+- active
 - base
+- gloss
+- gloss-export
 
 ghc-options:
   - -Wall
 
 library:
   source-dirs: src
+
+executables:
+  gloss-to-gif:
+    source-dirs: app
+    main: Main.hs
+    dependencies:
+      - gloss-to-gif
+      - semigroupoids
