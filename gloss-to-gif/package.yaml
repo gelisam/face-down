@@ -1,0 +1,10 @@
+name: gloss-to-gif
+
+dependencies:
+- base
+
+ghc-options:
+  - -Wall
+
+library:
+  source-dirs: src

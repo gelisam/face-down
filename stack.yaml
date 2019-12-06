@@ -3,6 +3,7 @@ packages:
   - face-trace
   - face-up
   - face-down
+  - gloss-to-gif
 extra-deps:
   - git: git@github.com:acowley/ffmpeg-light.git
     commit: 05f4dfe2b695c0f4ce0e63a9c5320ed4efd74fee
