@@ -12,14 +12,6 @@ ghc-options:
 library:
   source-dirs: src
 
-executables:
-  gloss-to-gif:
-    source-dirs: app
-    main: Main.hs
-    dependencies:
-      - gloss-to-gif
-      - semigroupoids
-
 tests:
   test:
     source-dirs: test
