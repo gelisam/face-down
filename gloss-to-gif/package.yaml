@@ -19,3 +19,15 @@ executables:
     dependencies:
       - gloss-to-gif
       - semigroupoids
+
+tests:
+  test:
+    source-dirs: test
+    main: Main.hs
+    dependencies:
+      - gloss-to-gif
+      - filepath
+      - tasty
+      - tasty-golden
+      - template-haskell
+      - th-utilities
