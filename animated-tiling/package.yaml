@@ -1,0 +1,25 @@
+name: animated-tiling
+
+dependencies:
+- active
+- base
+- gloss
+- gloss-export
+
+ghc-options:
+  - -Wall
+
+library:
+  source-dirs: src
+
+tests:
+  test:
+    source-dirs: test
+    main: Main.hs
+    dependencies:
+      - animated-tiling
+      - filepath
+      - tasty
+      - tasty-golden
+      - template-haskell
+      - th-utilities
