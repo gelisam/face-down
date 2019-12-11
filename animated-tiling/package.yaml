@@ -5,6 +5,10 @@ dependencies:
 - base
 - gloss
 - gloss-export
+- gloss-juicy
+- gloss-to-gif
+- lens
+- linear
 
 ghc-options:
   - -Wall
