@@ -1,6 +1,5 @@
 resolver: lts-10.3
 packages:
-  - animated-tiling
   - face-trace
   - face-up
   - face-down
