@@ -12,6 +12,7 @@ dependencies:
   - filepath
   - gloss
   - gloss-juicy
+  - gloss-rendering
   - lens
   - linear
   - mmorph

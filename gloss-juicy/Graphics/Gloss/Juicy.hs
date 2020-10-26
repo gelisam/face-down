@@ -40,7 +40,7 @@ fromImageRGBA8 :: Image PixelRGBA8 -> Picture
 fromImageRGBA8 (Image { imageWidth = w, imageHeight = h, imageData = id }) =
   bitmapOfForeignPtr w h
                      (BitmapFormat TopToBottom PxRGBA)
-                     ptr True
+                     ptr False
     where (ptr, _, _) = unsafeToForeignPtr id
 {-# INLINE fromImageRGBA8 #-}
 

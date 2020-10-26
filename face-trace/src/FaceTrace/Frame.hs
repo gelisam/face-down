@@ -2,6 +2,7 @@ module FaceTrace.Frame where
 
 import Codec.Picture
 import Graphics.Gloss.Interface.IO.Animate
+import Graphics.Gloss.Rendering
 import Graphics.Gloss.Juicy
 
 
@@ -15,8 +16,7 @@ frameHeight = imageHeight
 
 -- don't cache the pictures, or the cache will quickly consume all the RAM
 framePicture :: Frame -> Picture
-framePicture frame = let Bitmap width height imgData _cacheMe = fromImageRGB8 frame
-                      in Bitmap width height imgData False
+framePicture = fromImageRGB8
 
 
 defaultFrame :: Frame
