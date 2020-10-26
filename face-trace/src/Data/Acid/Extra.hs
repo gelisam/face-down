@@ -2,11 +2,13 @@ module Data.Acid.Extra where
 
 import Control.Exception
 import Data.Acid
+import Data.SafeCopy
+import Data.Typeable
 import System.Directory
 import System.FilePath
 
 
-load :: IsAcidic s
+load :: (Typeable s, IsAcidic s, SafeCopy s)
      => FilePath -> s -> IO (AcidState s)
 load acidStateDir s = openLocalStateFrom acidStateDir s
 
@@ -20,7 +22,7 @@ consolidate acidStateDir acidState = do
   closeAcidState   acidState
   removeDirectoryRecursive acidStateArchive
 
-withAcidState :: IsAcidic s
+withAcidState :: (Typeable s, IsAcidic s, SafeCopy s)
               => FilePath -> s -> (AcidState s -> IO a) -> IO a
 withAcidState acidStateDir s = bracket (load acidStateDir s)
                                        (consolidate acidStateDir)
