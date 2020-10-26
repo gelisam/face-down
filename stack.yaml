@@ -4,10 +4,12 @@ packages:
   - face-up
   - face-down
   - gloss-to-gif
+
+  # vendored
+  - gloss-juicy
 extra-deps:
   - git: git@github.com:acowley/ffmpeg-light.git
     commit: 4b80a0c30bc5e7f187f31ab1c242d490ba8e7cb9
   - git: git@gitlab.com:gelisam/gloss-export.git
     commit: c522be11dab0d8b5b10e3e4bc5d9ffd2a34add87
   - acid-state-0.16.0.1
-  - gloss-juicy-0.2.3
