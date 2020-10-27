@@ -1,7 +1,6 @@
 module Graphics.Gloss.Extra where
 
 import Data.Function
-import Data.Monoid
 import Graphics.Gloss
 
 

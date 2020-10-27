@@ -2,7 +2,6 @@ module FaceTrace.Frame where
 
 import Codec.Picture
 import Graphics.Gloss.Interface.IO.Animate
-import Graphics.Gloss.Rendering
 import Graphics.Gloss.Juicy
 
 

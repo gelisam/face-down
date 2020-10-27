@@ -9,7 +9,6 @@ import Control.Monad.Trans.State (StateT, execStateT, get)
 import Control.Monad.IO.Class
 import Control.Monad.Morph
 import Data.Acid (AcidState)
-import Data.Monoid
 import Graphics.Gloss.Interface.IO.Game
 import Linear
 import System.Exit
