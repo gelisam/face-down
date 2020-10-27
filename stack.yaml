@@ -13,3 +13,4 @@ extra-deps:
   - git: git@gitlab.com:gelisam/gloss-export.git
     commit: c522be11dab0d8b5b10e3e4bc5d9ffd2a34add87
   - acid-state-0.16.0.1
+  - th-utilities-0.2.4.0
