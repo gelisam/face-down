@@ -34,11 +34,13 @@ data FaceState = FaceState
 deriveSafeCopy 0 'base ''FaceState
 makeLenses ''FaceState
 
+instance Semigroup FaceState where
+  FaceState x1 y1 <> FaceState x2 y2
+    = FaceState (x1 <> x2)
+                (y1 <> y2)
+
 instance Monoid FaceState where
   mempty = FaceState mempty mempty
-  FaceState x1 y1 `mappend` FaceState x2 y2
-    = FaceState (x1 `mappend` x2)
-                (y1 `mappend` y2)
 
 faceStateDir :: FilePath -> FilePath
 faceStateDir = (++ ".face-trace")
