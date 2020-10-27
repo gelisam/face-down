@@ -14,7 +14,7 @@ videoDimentions :: FilePath -> IO (Int, Int)
 videoDimentions filePath = do
   withAvFile filePath $ do
     withStream 0 $ do
-      Just avCodecContext <- codecContext
+      ~(Just avCodecContext) <- codecContext
       streamImageSize avCodecContext
 
 -- | width:height
@@ -22,7 +22,7 @@ videoPixelAspectRatio :: FilePath -> IO (Ratio Int)
 videoPixelAspectRatio filePath = do
   withAvFile filePath $ do
     withStream 0 $ do
-      Just avCodecContext <- codecContext
+      ~(Just avCodecContext) <- codecContext
 
       -- default to 1, meaning "square pixels"
       liftIO $ getAspectRatio avCodecContext <&> \case
