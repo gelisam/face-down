@@ -1,0 +1,30 @@
+name: gloss-to-flv
+
+dependencies:
+- JuicyPixels
+- active
+- base
+- ffmpeg-light
+- gloss
+- gloss-active
+- gloss-export
+- gloss-juicy
+
+ghc-options:
+  - -Wall
+
+library:
+  source-dirs: src
+
+tests:
+  test:
+    source-dirs: test
+    main: Main.hs
+    dependencies:
+      - filepath
+      - gloss-active-test-support
+      - gloss-to-flv
+      - tasty
+      - tasty-hunit
+      - template-haskell
+      - th-utilities

@@ -1,4 +1,5 @@
 .stack-work
 *.cabal
 gloss-to-gif/test/actual
+gloss-to-flv/test/actual
 stack.yaml.lock

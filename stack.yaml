@@ -5,6 +5,7 @@ packages:
   - face-down
   - gloss-active
   - gloss-active/test-support
+  - gloss-to-flv
   - gloss-to-gif
 
   # vendored

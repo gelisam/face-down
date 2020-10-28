@@ -9,8 +9,10 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 
+type Page a
+  = (Duration Rational, a)
 type FlipBook a
-  = NonEmpty ((Duration Rational, a))
+  = NonEmpty (Page a)
 
 runFlipBook
   :: forall a. FlipBook a -> Active a
