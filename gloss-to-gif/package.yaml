@@ -17,9 +17,11 @@ tests:
     source-dirs: test
     main: Main.hs
     dependencies:
-      - gloss-to-gif
+      - JuicyPixels
+      - bytestring
       - filepath
+      - gloss-to-gif
       - tasty
-      - tasty-golden
+      - tasty-hunit
       - template-haskell
       - th-utilities

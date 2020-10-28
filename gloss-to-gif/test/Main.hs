@@ -1,12 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
 module Main where
 
+import Codec.Picture.Types
+import Codec.Picture.Gif
+import Control.Monad
 import Data.Active
 import Graphics.Gloss
 import System.FilePath
 import Test.Tasty
-import Test.Tasty.Golden
+import Test.Tasty.HUnit
 import TH.RelativePaths
+import qualified Data.ByteString as ByteString
 import qualified Language.Haskell.TH.Syntax as TH
 
 import GlossToGif
@@ -15,21 +19,30 @@ import GlossToGif
 main :: IO ()
 main = defaultMain tests
 
+readGif
+  :: FilePath
+  -> IO ([DynamicImage], [GifDelay])
+readGif filePath = do
+  bytes <- ByteString.readFile filePath
+  case (,) <$> decodeGifImages bytes <*> getDelaysGifImages bytes of
+    Left e -> error e
+    Right r -> pure r
+
 mkGolden
   :: FilePath
   -> (Int, Int)
   -> Active Picture
   -> TestTree
-mkGolden basename size animation
-  = goldenVsFile
-      basename
-      expected
-      actual
-      (writeGif actual size animation)
+mkGolden basename size animation = testCase basename $ do
+  writeGif actualFilePath size animation
+  expectedGif <- readGif expectedFilePath
+  actualGif <- readGif actualFilePath
+  when (expectedGif /= actualGif) $ do
+    assertFailure $ "files differ."
   where
     test = $(TH.lift =<< pathRelativeToCabalPackage "test")
-    expected = test </> "expected" </> basename <.> "gif"
-    actual   = test </> "actual"   </> basename <.> "gif"
+    expectedFilePath = test </> "expected" </> basename <.> "gif"
+    actualFilePath   = test </> "actual"   </> basename <.> "gif"
 
 tests
   :: TestTree
