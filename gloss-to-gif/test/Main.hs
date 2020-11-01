@@ -49,9 +49,13 @@ tests
 tests
   = testGroup "gloss-to-gif Golden Tests"
   [ mkGolden "pulsating-circle" (300, 300)
-      $ thickCircle
-    <$> cycleBetween 50 0.5 140
-    <*> cycleBetween 1 0.5 10
+      $ translate
+    <$> cycleBetween 50 0.5 0
+    <*> cycleBetween 95 0.5 0
+    <*> ( thickCircle
+      <$> cycleBetween 50 0.5 140
+      <*> cycleBetween 1 0.5 10
+        )
   ]
 
 
