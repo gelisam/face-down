@@ -31,10 +31,12 @@ readGif filePath = do
 mkGolden
   :: FilePath
   -> (Int, Int)
+  -> Color
+  -> Int
   -> Active Picture
   -> TestTree
-mkGolden basename size animation = testCase basename $ do
-  writeGif actualFilePath size animation
+mkGolden basename size bg fps animation = testCase basename $ do
+  writeGif actualFilePath size bg fps animation
   expectedGif <- readGif expectedFilePath
   actualGif <- readGif actualFilePath
   when (expectedGif /= actualGif) $ do
@@ -48,7 +50,7 @@ tests
   :: TestTree
 tests
   = testGroup "gloss-to-gif Golden Tests"
-  [ mkGolden "pulsating-circle" (300, 300)
+  [ mkGolden "pulsating-circle" (300, 300) white 25
       $ translate
     <$> cycleBetween 50 0.5 0
     <*> cycleBetween 95 0.5 0
