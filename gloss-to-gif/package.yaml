@@ -1,8 +1,10 @@
 name: gloss-to-gif
 
 dependencies:
+- JuicyPixels
 - active
 - base
+- bytestring
 - gloss
 - gloss-export
 
@@ -17,8 +19,6 @@ tests:
     source-dirs: test
     main: Main.hs
     dependencies:
-      - JuicyPixels
-      - bytestring
       - filepath
       - gloss-to-gif
       - tasty

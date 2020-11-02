@@ -1,8 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell #-}
 module Main where
 
-import Codec.Picture.Types
-import Codec.Picture.Gif
 import Control.Monad
 import Data.Active
 import Graphics.Gloss
@@ -10,7 +8,6 @@ import System.FilePath
 import Test.Tasty
 import Test.Tasty.HUnit
 import TH.RelativePaths
-import qualified Data.ByteString as ByteString
 import qualified Language.Haskell.TH.Syntax as TH
 
 import GlossToGif
@@ -18,15 +15,6 @@ import GlossToGif
 
 main :: IO ()
 main = defaultMain tests
-
-readGif
-  :: FilePath
-  -> IO ([DynamicImage], [GifDelay])
-readGif filePath = do
-  bytes <- ByteString.readFile filePath
-  case (,) <$> decodeGifImages bytes <*> getDelaysGifImages bytes of
-    Left e -> error e
-    Right r -> pure r
 
 mkGolden
   :: FilePath
