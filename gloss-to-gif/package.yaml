@@ -5,8 +5,10 @@ dependencies:
 - active
 - base
 - bytestring
+- containers
 - gloss
 - gloss-export
+- gloss-juicy
 
 ghc-options:
   - -Wall

@@ -1,27 +1,69 @@
 module GlossToGif where
 
-import Codec.Picture.Types (DynamicImage)
-import Data.Active (Active, Dynamic)
+import Codec.Picture (DynamicImage)
+import Data.Active (Active, Duration, Dynamic, Time)
+import Data.Map (Map)
 import Graphics.Gloss (Color, Picture)
-import Graphics.Gloss.Export.Gif (GifDelay)
 import Graphics.Gloss.Export.Image (Size)
 import qualified Codec.Picture.Gif as JuicyPixels
 import qualified Data.Active as Active
 import qualified Data.ByteString as ByteString
+import qualified Data.Map as Map
 import qualified Graphics.Gloss.Export.Gif as GlossExport
+import qualified Graphics.Gloss.Juicy as GlossJuicy
 
 import qualified Data.Active.Extra as Active
 
 
-readGif
+readRawGif
   :: FilePath
-  -> IO ([DynamicImage], [GifDelay])
-readGif filePath = do
+  -> IO [(Duration Rational, DynamicImage)]
+readRawGif filePath = do
   bytes <- ByteString.readFile filePath
   case (,) <$> JuicyPixels.decodeGifImages bytes
            <*> JuicyPixels.getDelaysGifImages bytes of
     Left e -> error e
-    Right r -> pure r
+    Right (frames, centisecondDelays) -> do
+      let fromCentiseconds :: Int -> Rational
+          fromCentiseconds = (/ 100) . fromIntegral
+      let delays :: [Duration Rational]
+          delays = fmap
+            (Active.toDuration . fromCentiseconds)
+            centisecondDelays
+      pure $ zip delays frames
+
+readGif
+  :: FilePath
+  -> IO (Active Picture)
+readGif filePath = do
+  rawGif <- readRawGif filePath
+  let delays :: [Duration Rational]
+      delays = fmap fst rawGif
+  let frames :: [DynamicImage]
+      frames = fmap snd rawGif
+  let timestamps :: [Time Rational]
+      timestamps
+        = fmap Active.toTime
+        . scanl (+) 0
+        . fmap Active.fromDuration
+        $ delays
+  let fromDynamicImage :: DynamicImage -> Picture
+      fromDynamicImage dynamicImage
+        = case GlossJuicy.fromDynamicImage dynamicImage of
+            Nothing -> error "readGif: unrecognized image format"
+            Just picture -> picture
+  let pictures :: [Picture]
+      pictures = fmap fromDynamicImage frames
+  let table :: Map (Time Rational) Picture
+      table = Map.fromList $ zip timestamps pictures
+  let getPicture :: Time Rational -> Picture
+      getPicture t = case Map.lookupLE t table of
+        Nothing -> error "readGif: Active accessed outside of its Era"
+        Just (_, frame) -> frame
+  pure $ Active.mkActive
+    (head timestamps)
+    (last timestamps)
+    getPicture
 
 writeGif
   :: FilePath

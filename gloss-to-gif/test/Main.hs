@@ -25,8 +25,8 @@ mkGolden
   -> TestTree
 mkGolden basename size bg fps animation = testCase basename $ do
   writeGif actualFilePath size bg fps animation
-  expectedGif <- readGif expectedFilePath
-  actualGif <- readGif actualFilePath
+  expectedGif <- readRawGif expectedFilePath
+  actualGif <- readRawGif actualFilePath
   when (expectedGif /= actualGif) $ do
     assertFailure $ "files differ."
   where
