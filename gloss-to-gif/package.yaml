@@ -29,3 +29,11 @@ tests:
       - tasty-hunit
       - template-haskell
       - th-utilities
+
+executables:
+  play-gif:
+    source-dirs: play-gif
+    main: main.hs
+    dependencies:
+      - docopt
+      - gloss-to-gif

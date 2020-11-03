@@ -1,10 +1,11 @@
 module GlossToGif where
 
-import Codec.Picture (DynamicImage)
+import Codec.Picture (DynamicImage, Image, Pixel)
 import Data.Active (Active, Duration, Dynamic, Time)
 import Data.Map (Map)
 import Graphics.Gloss (Color, Picture)
 import Graphics.Gloss.Export.Image (Size)
+import qualified Codec.Picture as JuicyPixels
 import qualified Codec.Picture.Gif as JuicyPixels
 import qualified Data.Active as Active
 import qualified Data.ByteString as ByteString
@@ -32,9 +33,19 @@ readRawGif filePath = do
             centisecondDelays
       pure $ zip delays frames
 
+dynamicSize :: DynamicImage -> Size
+dynamicSize img
+  = JuicyPixels.dynamicMap imageSize img
+  where
+    imageSize :: Pixel pixel => Image pixel -> Size
+    imageSize image
+      = ( JuicyPixels.imageWidth image
+        , JuicyPixels.imageHeight image
+        )
+
 readGif
   :: FilePath
-  -> IO (Active Picture)
+  -> IO (Size, Active Picture)
 readGif filePath = do
   rawGif <- readRawGif filePath
   let delays :: [Duration Rational]
@@ -60,10 +71,12 @@ readGif filePath = do
       getPicture t = case Map.lookupLE t table of
         Nothing -> error "readGif: Active accessed outside of its Era"
         Just (_, frame) -> frame
-  pure $ Active.mkActive
-    (head timestamps)
-    (last timestamps)
-    getPicture
+  let size = dynamicSize (head frames)
+  let active = Active.mkActive
+        (head timestamps)
+        (last timestamps)
+        getPicture
+  pure (size, active)
 
 writeGif
   :: FilePath
