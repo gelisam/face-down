@@ -1,5 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Main where
+
+import Control.Monad
 import System.Console.Docopt (Arguments, Docopt, Option)
 import System.Environment (getArgs)
 import qualified Graphics.Gloss as Gloss
@@ -9,20 +11,27 @@ import GlossActive
 import GlossToGif
 
 
-patterns :: Docopt
-patterns = [Docopt.docopt|
+docopt :: Docopt
+docopt = [Docopt.docopt|
 Usage:
+  play-gif --help
   play-gif <gif_file>
 
 Plays the given file in a loop. ESC to quit.
+
+Options:
+  -h, --help    Display this message
 |]
 
 getArgOrExit :: Arguments -> Option -> IO String
-getArgOrExit = Docopt.getArgOrExitWith patterns
+getArgOrExit = Docopt.getArgOrExitWith docopt
 
 main :: IO ()
 main = do
-  args <- Docopt.parseArgsOrExit patterns =<< getArgs
+  args <- Docopt.parseArgsOrExit docopt =<< getArgs
+  when (args `Docopt.isPresent` Docopt.longOption "help") $ do
+    Docopt.exitWithUsage docopt
+
   filePath <- args `getArgOrExit` Docopt.argument "gif_file"
   (size, active) <- readGif filePath
   animateActive
