@@ -7,6 +7,7 @@ dependencies:
 - bytestring
 - containers
 - gloss
+- gloss-active
 - gloss-export
 - gloss-juicy
 

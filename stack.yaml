@@ -3,6 +3,7 @@ packages:
   - face-trace
   - face-up
   - face-down
+  - gloss-active
   - gloss-to-gif
 
   # vendored
