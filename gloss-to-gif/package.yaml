@@ -23,6 +23,7 @@ tests:
     main: Main.hs
     dependencies:
       - filepath
+      - gloss-active-test-support
       - gloss-to-gif
       - tasty
       - tasty-hunit

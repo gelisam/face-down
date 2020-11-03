@@ -10,3 +10,11 @@ ghc-options:
 
 library:
   source-dirs: src
+
+executables:
+  pulsating-circle:
+    main: main.hs
+    source-dirs: pulsating-circle
+    dependencies:
+      - gloss-active
+      - gloss-active-test-support

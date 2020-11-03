@@ -1,0 +1,12 @@
+name: gloss-active-test-support
+
+dependencies:
+- active
+- base
+- gloss
+
+ghc-options:
+  - -Wall
+
+library:
+  source-dirs: src
