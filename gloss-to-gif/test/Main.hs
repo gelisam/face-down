@@ -39,5 +39,5 @@ tests
   :: TestTree
 tests
   = testGroup "gloss-to-gif Golden Tests"
-  [ mkGolden "pulsating-circle" (300, 300) white 25 pulsatingCircle
+  [ mkGolden "pulsating-circle" (300, 300) white 60 pulsatingCircle
   ]
