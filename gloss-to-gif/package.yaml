@@ -35,5 +35,5 @@ executables:
     source-dirs: play-gif
     main: main.hs
     dependencies:
-      - docopt
       - gloss-to-gif
+      - optparse-applicative

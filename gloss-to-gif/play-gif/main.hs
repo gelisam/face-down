@@ -1,38 +1,30 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Main where
 
-import Control.Monad
-import System.Console.Docopt (Arguments, Docopt, Option)
-import System.Environment (getArgs)
+import Options.Applicative ((<**>))
 import qualified Graphics.Gloss as Gloss
-import qualified System.Console.Docopt as Docopt
+import qualified Options.Applicative as Opt
 
 import GlossActive
 import GlossToGif
 
 
-docopt :: Docopt
-docopt = [Docopt.docopt|
-Usage:
-  play-gif --help
-  play-gif <gif_file>
+cliArgs :: Opt.Parser FilePath
+cliArgs
+  = Opt.argument Opt.str (Opt.metavar "FILE.gif")
 
-Plays the given file in a loop. ESC to quit.
+cliHelp :: Opt.InfoMod a
+cliHelp
+  = Opt.fullDesc
+ <> Opt.progDesc "Plays the given file in a loop. ESC to quit."
 
-Options:
-  -h, --help    Display this message
-|]
-
-getArgOrExit :: Arguments -> Option -> IO String
-getArgOrExit = Docopt.getArgOrExitWith docopt
+cliApi :: Opt.ParserInfo FilePath
+cliApi
+  = Opt.info (cliArgs <**> Opt.helper) cliHelp
 
 main :: IO ()
 main = do
-  args <- Docopt.parseArgsOrExit docopt =<< getArgs
-  when (args `Docopt.isPresent` Docopt.longOption "help") $ do
-    Docopt.exitWithUsage docopt
-
-  filePath <- args `getArgOrExit` Docopt.argument "gif_file"
+  filePath <- Opt.execParser cliApi
   (size, active) <- readGif filePath
   animateActive
     (Gloss.InWindow filePath size size)

@@ -14,7 +14,5 @@ extra-deps:
     commit: 4b80a0c30bc5e7f187f31ab1c242d490ba8e7cb9
   - git: git@gitlab.com:gelisam/gloss-export.git
     commit: c522be11dab0d8b5b10e3e4bc5d9ffd2a34add87
-  - git: git@github.com:gelisam/docopt.hs.git
-    commit: 16dc7bc596c0ea4fa4466b12f474b1abfa72c885
   - acid-state-0.16.0.1
   - th-utilities-0.2.4.0
