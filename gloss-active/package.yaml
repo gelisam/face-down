@@ -3,6 +3,7 @@ name: gloss-active
 dependencies:
 - active
 - base
+- containers
 - gloss
 
 ghc-options:

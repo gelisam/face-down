@@ -5,7 +5,6 @@ dependencies:
 - active
 - base
 - bytestring
-- containers
 - gloss
 - gloss-active
 - gloss-export

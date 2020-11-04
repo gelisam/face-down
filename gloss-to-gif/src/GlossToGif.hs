@@ -1,37 +1,43 @@
+{-# LANGUAGE ViewPatterns #-}
 module GlossToGif where
 
 import Codec.Picture (DynamicImage, Image, Pixel)
-import Data.Active (Active, Duration, Dynamic, Time)
-import Data.Map (Map)
+import Data.Active (Active, Duration, Dynamic)
+import Data.List.NonEmpty (NonEmpty)
 import Graphics.Gloss (Color, Picture)
 import Graphics.Gloss.Export.Image (Size)
 import qualified Codec.Picture as JuicyPixels
 import qualified Codec.Picture.Gif as JuicyPixels
 import qualified Data.Active as Active
 import qualified Data.ByteString as ByteString
-import qualified Data.Map as Map
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Graphics.Gloss.Export.Gif as GlossExport
 import qualified Graphics.Gloss.Juicy as GlossJuicy
 
+import Data.Active.FlipBook
 import qualified Data.Active.Extra as Active
 
 
-readRawGif
+readGifFlipBook
   :: FilePath
-  -> IO [(Duration Rational, DynamicImage)]
-readRawGif filePath = do
+  -> IO (FlipBook DynamicImage)
+readGifFlipBook filePath = do
   bytes <- ByteString.readFile filePath
   case (,) <$> JuicyPixels.decodeGifImages bytes
            <*> JuicyPixels.getDelaysGifImages bytes of
-    Left e -> error e
-    Right (frames, centisecondDelays) -> do
+    Left e -> do
+      error e
+    Right ( NonEmpty.nonEmpty -> Just frames
+          , NonEmpty.nonEmpty -> Just centisecondDelays) -> do
       let fromCentiseconds :: Int -> Rational
           fromCentiseconds = (/ 100) . fromIntegral
-      let delays :: [Duration Rational]
+      let delays :: NonEmpty (Duration Rational)
           delays = fmap
             (Active.toDuration . fromCentiseconds)
             centisecondDelays
-      pure $ zip delays frames
+      pure $ NonEmpty.zip delays frames
+    _ -> do
+      error $ "readGif " ++ show filePath ++ ": 0 frames"
 
 dynamicSize :: DynamicImage -> Size
 dynamicSize img
@@ -47,36 +53,18 @@ readGif
   :: FilePath
   -> IO (Size, Active Picture)
 readGif filePath = do
-  rawGif <- readRawGif filePath
-  let delays :: [Duration Rational]
-      delays = fmap fst rawGif
-  let frames :: [DynamicImage]
-      frames = fmap snd rawGif
-  let timestamps :: [Time Rational]
-      timestamps
-        = fmap Active.toTime
-        . scanl (+) 0
-        . fmap Active.fromDuration
-        $ delays
+  flipBook <- readGifFlipBook filePath
+  let dynamicImages :: Active DynamicImage
+      dynamicImages = runFlipBook flipBook
   let fromDynamicImage :: DynamicImage -> Picture
       fromDynamicImage dynamicImage
         = case GlossJuicy.fromDynamicImage dynamicImage of
             Nothing -> error "readGif: unrecognized image format"
             Just picture -> picture
-  let pictures :: [Picture]
-      pictures = fmap fromDynamicImage frames
-  let table :: Map (Time Rational) Picture
-      table = Map.fromList $ zip timestamps pictures
-  let getPicture :: Time Rational -> Picture
-      getPicture t = case Map.lookupLE t table of
-        Nothing -> error "readGif: Active accessed outside of its Era"
-        Just (_, frame) -> frame
-  let size = dynamicSize (head frames)
-  let active = Active.mkActive
-        (head timestamps)
-        (last timestamps)
-        getPicture
-  pure (size, active)
+  let pictures :: Active Picture
+      pictures = fmap fromDynamicImage dynamicImages
+  let size = dynamicSize . snd . NonEmpty.head $ flipBook
+  pure (size, pictures)
 
 writeGif
   :: FilePath
@@ -86,16 +74,16 @@ writeGif
   -> Active Picture
   -> IO ()
 writeGif filePath size bg fps = do
-  Active.onActive (writeImage filePath size bg)
-                  (writeLoop  filePath size bg fps)
+  Active.onActive (writeGifImage filePath size bg)
+                  (writeGifLoop  filePath size bg fps)
 
-writeImage
+writeGifImage
   :: FilePath
   -> Size
   -> Color  -- ^ background color
   -> Picture
   -> IO ()
-writeImage filePath size bg picture = do
+writeGifImage filePath size bg picture = do
   GlossExport.exportPicturesToGif
     0
     GlossExport.LoopingNever
@@ -105,14 +93,14 @@ writeImage filePath size bg picture = do
     (const picture)
     [0]
 
-writeLoop
+writeGifLoop
   :: FilePath
   -> Size
   -> Color  -- ^ background color
   -> Int  -- ^ frames per second
   -> Dynamic Picture
   -> IO ()
-writeLoop filePath size bg fps dynamic = do
+writeGifLoop filePath size bg fps dynamic = do
   GlossExport.exportPicturesToGif
     (ceiling centisecondsPerFrame)  -- at least 1
     GlossExport.LoopingForever
