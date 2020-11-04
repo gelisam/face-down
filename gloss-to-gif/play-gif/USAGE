@@ -1,4 +1,0 @@
-Usage:
-  play-gif <file>
-
-Plays the given file in a loop. ESC to quit.
