@@ -18,10 +18,7 @@ type FlipBook a
 
 runFlipBook
   :: forall a. FlipBook a -> Active a
-runFlipBook flipBook = Active.mkActive
-  (NonEmpty.head timestamps)
-  (NonEmpty.last timestamps)
-  getPage
+runFlipBook flipBook = Active.mkActive begin end getPage
   where
     durations :: [Duration Rational]
     durations
@@ -36,6 +33,12 @@ runFlipBook flipBook = Active.mkActive
     timestamps
       = Active.durationsToTimestamps durations
 
+    begin :: Time Rational
+    begin = NonEmpty.head timestamps
+
+    end :: Time Rational
+    end = NonEmpty.last timestamps
+
     table :: Map (Time Rational) a
     table = Map.fromList
           . NonEmpty.toList
@@ -43,5 +46,8 @@ runFlipBook flipBook = Active.mkActive
 
     getPage :: Time Rational -> a
     getPage t = case Map.lookupLE t table of
-      Nothing -> error "runFlipBook: Active accessed outside of its Era"
+      Nothing -> error $ "runFlipBook: Active accessed outside of its Era "
+                      ++ "(" ++ show t
+                      ++ " is not within " ++ show [begin, end]
+                      ++ ")"
       Just (_, page) -> page
