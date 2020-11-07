@@ -3,26 +3,27 @@ module Codec.FFmpeg.Extra where
 
 import Codec.Picture
 import Control.Exception
+import Data.Active (Time)
 import Graphics.Gloss.Export.Image (Size)
 import qualified Codec.FFmpeg as FFmpeg
-
-import Data.Active.FlipBook (Page)
+import qualified Data.Active as Active
 
 
 type Frame = Image PixelRGB8
 type MovieReaderHandle = (IO (Maybe (Frame, Double)), IO ())
 type MovieWriterHandle = Maybe Frame -> IO ()
 
-hReadPage :: MovieReaderHandle -> IO (Maybe (Page Frame))
-hReadPage (readPage, _) = do
+hReadTimestampedFrame :: MovieReaderHandle -> IO (Maybe (Time Rational, Frame))
+hReadTimestampedFrame (readPage, _) = do
   readPage >>= \case
     Nothing -> do
       pure Nothing
-    Just (frame, doubleDuration) -> do
-      pure $ Just (realToFrac doubleDuration, frame)
+    Just (frame, timestampDouble) -> do
+      let timestamp = Active.toTime . realToFrac $ timestampDouble
+      pure $ Just (timestamp, frame)
 
 hReadFrame :: MovieReaderHandle -> IO (Maybe Frame)
-hReadFrame h = fmap snd <$> hReadPage h
+hReadFrame h = fmap snd <$> hReadTimestampedFrame h
 
 hWriteFrame :: MovieWriterHandle -> Frame -> IO ()
 hWriteFrame f img = f (Just img)

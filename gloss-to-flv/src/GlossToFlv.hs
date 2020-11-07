@@ -15,6 +15,7 @@ import qualified Graphics.Gloss.Export.Image as Export
 import qualified Graphics.Gloss.Juicy as GlossJuicy
 
 import Data.Active.FlipBook
+import qualified Data.Active.Extra as Active
 import qualified Codec.FFmpeg.Extra as FFmpeg
 
 
@@ -23,17 +24,27 @@ readFlvFlipBook
   -> IO (FlipBook FFmpeg.Frame)
 readFlvFlipBook filePath = do
   FFmpeg.withMovieReader filePath $ \h -> do
-    pages <- fix $ \loop -> do
-      FFmpeg.hReadPage h >>= \case
-        Just page -> do
-          (page :) <$> loop
+    timestampedFrames <- fix $ \loop -> do
+      FFmpeg.hReadTimestampedFrame h >>= \case
+        Just timestampedFrame -> do
+          (timestampedFrame :) <$> loop
         Nothing -> do
           pure []
-    case pages of
+    case timestampedFrames of
       [] -> do
-        error $ "readFlv " ++ show filePath ++ ": 0 frames"
-      p:ps -> do
-        pure (p :| ps)
+        error $ "readFlv " ++ show filePath ++ ": too few frames (0)"
+      tf:tfs -> do
+        let (timestamps, frames) = NonEmpty.unzip (tf :| tfs)
+        let initDurations = Active.timestampsToDurations timestamps
+        -- ffmpeg-light only gives the start time of every frame, therefore we
+        -- have no way to know how long the last frame lasts. just assume it
+        -- lasts the same as the penultimate frame.
+        case initDurations ++ [last initDurations] of
+          [] -> do
+            error $ "readFlv " ++ show filePath ++ ": too few frames (1)"
+          d:ds -> do
+            let durations = d :| ds
+            pure $ NonEmpty.zip durations frames
 
 readFlv
   :: FilePath
