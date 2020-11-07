@@ -6,12 +6,12 @@ import qualified Graphics.Gloss as Gloss
 import qualified Options.Applicative as Opt
 
 import GlossActive
-import GlossToGif
+import GlossToFlv
 
 
 cliArgs :: Opt.Parser FilePath
 cliArgs
-  = Opt.argument Opt.str (Opt.metavar "FILE.gif")
+  = Opt.argument Opt.str (Opt.metavar "FILE.flv")
 
 cliHelp :: Opt.InfoMod a
 cliHelp
@@ -25,7 +25,7 @@ cliApi
 main :: IO ()
 main = do
   filePath <- Opt.execParser cliApi
-  (size, active) <- readGif filePath
+  (size, active) <- readFlv filePath
   animateActive
     (Gloss.InWindow filePath size size)
     Gloss.black

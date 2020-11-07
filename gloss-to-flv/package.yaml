@@ -28,3 +28,11 @@ tests:
       - tasty-hunit
       - template-haskell
       - th-utilities
+
+executables:
+  play-flv:
+    source-dirs: play-flv
+    main: main.hs
+    dependencies:
+      - gloss-to-flv
+      - optparse-applicative
