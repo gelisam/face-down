@@ -8,6 +8,8 @@ import qualified Data.Active as Active
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
+import qualified Data.Active.Extra as Active
+
 
 type Page a
   = (Duration Rational, a)
@@ -21,18 +23,18 @@ runFlipBook flipBook = Active.mkActive
   (NonEmpty.last timestamps)
   getPage
   where
-    durations :: NonEmpty (Duration Rational)
-    durations = fmap fst flipBook
+    durations :: [Duration Rational]
+    durations
+      = NonEmpty.toList
+      . fmap fst
+      $ flipBook
 
     pages :: NonEmpty a
     pages = fmap snd flipBook
 
     timestamps :: NonEmpty (Time Rational)
     timestamps
-      = fmap Active.toTime
-      . NonEmpty.scanl (+) 0
-      . fmap Active.fromDuration
-      $ durations
+      = Active.durationsToTimestamps durations
 
     table :: Map (Time Rational) a
     table = Map.fromList

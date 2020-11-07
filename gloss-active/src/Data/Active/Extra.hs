@@ -1,13 +1,31 @@
+{-# LANGUAGE ViewPatterns #-}
 module Data.Active.Extra where
 
-import Data.Active (Dynamic, Era, Time)
+import Data.Active (Duration, Dynamic, Era, Time)
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Active as Active
+import qualified Data.List.NonEmpty as NonEmpty
 
 
-timestamps
+timeOf
   :: Dynamic a -> Dynamic (Time Rational)
-timestamps active
+timeOf active
   = Active.mkDynamic (Active.start era) (Active.end era) id
   where
     era :: Era Rational
     era = Active.era active
+
+durationsToTimestamps
+  :: Num a
+  => [Duration a] -> NonEmpty (Time a)
+durationsToTimestamps
+  = fmap Active.toTime
+  . NonEmpty.scanl (+) 0
+  . fmap Active.fromDuration
+
+timestampsToDurations
+  :: Num a
+  => NonEmpty (Time a) -> [Duration a]
+timestampsToDurations (NonEmpty.toList . fmap Active.fromTime -> timestamps)
+  = fmap Active.toDuration
+  $ zipWith (-) timestamps (drop 1 timestamps)

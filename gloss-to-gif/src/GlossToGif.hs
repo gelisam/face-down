@@ -124,5 +124,5 @@ writeGifLoop filePath size bg fps dynamic = do
       = Active.simulate (fromIntegral fps)
       . Active.fromDynamic
       . fmap realToFrac
-      . Active.timestamps
+      . Active.timeOf
       $ dynamic
