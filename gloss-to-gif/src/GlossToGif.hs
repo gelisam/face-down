@@ -121,7 +121,8 @@ writeGifLoop filePath size bg fps dynamic = do
 
     timestampsToEvaluate :: [Float]
     timestampsToEvaluate
-      = Active.simulate (fromIntegral fps)
+      = NonEmpty.tail  -- the final timestamp (the era end) + the duration would go past the era end
+      . Active.simulateNonEmpty (fromIntegral fps)
       . Active.fromDynamic
       . fmap realToFrac
       . Active.timeOf

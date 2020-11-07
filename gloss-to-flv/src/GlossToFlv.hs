@@ -81,4 +81,6 @@ writeFlv filePath size bg fps active = do
   where
     frames :: [Picture]
     frames
-      = Active.simulate (fromIntegral fps) active
+      = NonEmpty.tail  -- the final frame (at the era end) + the duration would go past the era end
+      . Active.simulateNonEmpty (fromIntegral fps)
+      $ active
