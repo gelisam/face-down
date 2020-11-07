@@ -28,4 +28,4 @@ timestampsToDurations
   => NonEmpty (Time a) -> [Duration a]
 timestampsToDurations (NonEmpty.toList . fmap Active.fromTime -> timestamps)
   = fmap Active.toDuration
-  $ zipWith (-) timestamps (drop 1 timestamps)
+  $ zipWith (-) (drop 1 timestamps) timestamps
