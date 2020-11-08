@@ -17,19 +17,30 @@ import GlossToGif
 main :: IO ()
 main = defaultMain tests
 
-mkGolden
+mkTests
   :: FilePath
   -> (Int, Int)
   -> Color
   -> Int
   -> Active Picture
   -> TestTree
-mkGolden basename size bg fps animation = testCase basename $ do
-  writeGif actualFilePath size bg fps animation
-  expectedGif <- readGifFlipBook expectedFilePath
-  actualGif <- readGifFlipBook actualFilePath
-  when (expectedGif /= actualGif) $ do
-    assertFailure $ "files differ."
+mkTests basename size bg fps animation = do
+  testGroup basename
+    [ testCase "matches golden file" $ do
+        writeGif actualFilePath size bg fps animation
+        expectedGif <- readGifFlipBook expectedFilePath
+        actualGif <- readGifFlipBook actualFilePath
+        when (expectedGif /= actualGif) $ do
+          assertFailure $ "files differ."
+    , testCase "round-trips" $ do
+        writeGif actualFilePath size bg fps animation
+        (size2, animation2) <- readGif actualFilePath
+        writeGif actualFilePath size2 bg fps animation2
+        expectedGif <- readGifFlipBook expectedFilePath
+        actualGif <- readGifFlipBook actualFilePath
+        when (expectedGif /= actualGif) $ do
+          assertFailure $ "files differ."
+    ]
   where
     test = $(TH.lift =<< pathRelativeToCabalPackage "test")
     expectedFilePath = test </> "expected" </> basename <.> "gif"
@@ -39,5 +50,5 @@ tests
   :: TestTree
 tests
   = testGroup "gloss-to-gif Golden Tests"
-  [ mkGolden "pulsating-circle" (300, 300) white 60 pulsatingCircle
+  [ mkTests "pulsating-circle" (300, 300) white 60 pulsatingCircle
   ]
