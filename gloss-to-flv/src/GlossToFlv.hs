@@ -9,7 +9,6 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Graphics.Gloss (Color, Picture)
 import Graphics.Gloss.Export.Image (Size)
 import qualified Codec.Picture as JuicyPixels
-import qualified Data.Active as Active
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Graphics.Gloss.Export.Image as Export
 import qualified Graphics.Gloss.Juicy as GlossJuicy
@@ -79,8 +78,7 @@ writeFlv filePath size bg fps active = do
         Export.withImage size bg glossState frame $ \image -> do
           FFmpeg.hWriteFrame h image
   where
-    frames :: [Picture]
+    frames :: NonEmpty Picture
     frames
-      = NonEmpty.init  -- the final frame (at the era end) + the duration would go past the era end
-      . Active.simulateNonEmpty (fromIntegral fps)
+      = Active.sampleFrames (fromIntegral fps)
       $ active

@@ -20,8 +20,8 @@ main = defaultMain tests
 mkTests
   :: FilePath
   -> (Int, Int)
-  -> Color
-  -> Int
+  -> Color  -- background color
+  -> Rational  -- frames per second
   -> Active Picture
   -> TestTree
 mkTests basename size bg fps animation = do
@@ -51,5 +51,5 @@ tests
   :: TestTree
 tests
   = testGroup "gloss-to-gif Golden Tests"
-  [ mkTests "pulsating-circle" (300, 300) white 60 pulsatingCircle
+  [ mkTests "pulsating-circle" (300, 300) white 50 pulsatingCircle
   ]

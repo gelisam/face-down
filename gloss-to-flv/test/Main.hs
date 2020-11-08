@@ -20,8 +20,8 @@ main = defaultMain tests
 mkGolden
   :: FilePath
   -> (Int, Int)
-  -> Color
-  -> Int
+  -> Color  -- background color
+  -> Int  -- frames per second
   -> Active Picture
   -> TestTree
 mkGolden basename size bg fps animation = testCase basename $ do
@@ -39,5 +39,5 @@ tests
   :: TestTree
 tests
   = testGroup "gloss-to-flv Golden Tests"
-  [ mkGolden "pulsating-circle" (300, 300) white 60 pulsatingCircle
+  [ mkGolden "pulsating-circle" (300, 300) white 50 pulsatingCircle
   ]

@@ -70,7 +70,7 @@ writeGif
   :: FilePath
   -> Size
   -> Color  -- ^ background color
-  -> Int  -- ^ frames per second
+  -> Rational  -- ^ frames per second
   -> Active Picture
   -> IO ()
 writeGif filePath size bg fps = do
@@ -97,7 +97,7 @@ writeGifLoop
   :: FilePath
   -> Size
   -> Color  -- ^ background color
-  -> Int  -- ^ frames per second
+  -> Rational  -- ^ frames per second
   -> Dynamic Picture
   -> IO ()
 writeGifLoop filePath size bg fps dynamic = do
@@ -108,22 +108,20 @@ writeGifLoop filePath size bg fps dynamic = do
     bg
     filePath
     animation
-    timestampsToEvaluate
+    (NonEmpty.toList timestampsToEvaluate)
   where
     centisecondsPerFrame :: Rational
     centisecondsPerFrame
-      = 100 / fromIntegral fps
+      = 100 / fps
 
     animation :: Float -> Picture
     animation
       = Active.runDynamic dynamic
       . realToFrac
 
-    timestampsToEvaluate :: [Float]
+    timestampsToEvaluate :: NonEmpty Float
     timestampsToEvaluate
-      = NonEmpty.init  -- the final timestamp (the era end) + the duration would go past the era end
-      . Active.simulateNonEmpty (fromIntegral fps)
-      . Active.fromDynamic
+      = Active.sampleFramesDynamic fps
       . fmap realToFrac
       . Active.timeOf
       $ dynamic
