@@ -1,5 +1,5 @@
 .stack-work
 *.cabal
-gloss-to-gif/test/actual
-gloss-to-flv/test/actual
+**/test/actual
+**/test/roundtrip
 stack.yaml.lock
