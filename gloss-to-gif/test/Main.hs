@@ -35,16 +35,17 @@ mkTests basename size bg fps animation = do
     , testCase "round-trips" $ do
         writeGif actualFilePath size bg fps animation
         (size2, animation2) <- readGif actualFilePath
-        writeGif actualFilePath size2 bg fps animation2
-        expectedGif <- readGifFlipBook expectedFilePath
+        writeGif roundtripFilePath size2 bg fps animation2
         actualGif <- readGifFlipBook actualFilePath
-        when (expectedGif /= actualGif) $ do
+        roundtripGif <- readGifFlipBook roundtripFilePath
+        when (actualGif /= roundtripGif) $ do
           assertFailure $ "files differ."
     ]
   where
     test = $(TH.lift =<< pathRelativeToCabalPackage "test")
-    expectedFilePath = test </> "expected" </> basename <.> "gif"
-    actualFilePath   = test </> "actual"   </> basename <.> "gif"
+    expectedFilePath  = test </> "expected"  </> basename <.> "gif"
+    actualFilePath    = test </> "actual"    </> basename <.> "gif"
+    roundtripFilePath = test </> "roundtrip" </> basename <.> "gif"
 
 tests
   :: TestTree
