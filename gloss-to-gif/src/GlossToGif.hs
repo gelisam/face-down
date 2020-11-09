@@ -102,7 +102,7 @@ writeGifLoop
   -> IO ()
 writeGifLoop filePath size bg fps dynamic = do
   GlossExport.exportPicturesToGif
-    (ceiling centisecondsPerFrame)  -- at least 1
+    centisecondsPerFrame
     GlossExport.LoopingForever
     size
     bg
@@ -110,9 +110,15 @@ writeGifLoop filePath size bg fps dynamic = do
     animation
     (NonEmpty.toList timestampsToEvaluate)
   where
-    centisecondsPerFrame :: Rational
+    centisecondsPerFrame :: Int
     centisecondsPerFrame
-      = 100 / fps
+      = ceiling  -- at least 1
+      . (100 /)
+      $ fps
+
+    secondsPerFrame :: Rational
+    secondsPerFrame
+      = fromIntegral centisecondsPerFrame / 100
 
     animation :: Float -> Picture
     animation
@@ -121,7 +127,7 @@ writeGifLoop filePath size bg fps dynamic = do
 
     timestampsToEvaluate :: NonEmpty Float
     timestampsToEvaluate
-      = Active.sampleFramesDynamic fps
+      = Active.sampleFramesDynamic secondsPerFrame
       . fmap realToFrac
       . Active.timeOf
       $ dynamic

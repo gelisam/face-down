@@ -15,26 +15,23 @@ import qualified Data.List.NonEmpty as NonEmpty
 -- Active.simulate takes one last sample after the end, whereas this
 -- implementation does not sample outside the era.
 sampleFrames
-  :: Rational  -- ^ frames per second
+  :: Rational  -- ^ seconds per frame
   -> Active a
   -> NonEmpty a
-sampleFrames fps
+sampleFrames spf
   = Active.onActive
       (\a -> a :| [])
-      (sampleFramesDynamic fps)
+      (sampleFramesDynamic spf)
 
 sampleFramesDynamic
-  :: Rational  -- ^ frames per second
+  :: Rational  -- ^ seconds per frame, not frames per second!
   -> Dynamic a
   -> NonEmpty a
-sampleFramesDynamic fps dynamic
+sampleFramesDynamic spf dynamic
   = case timestamps of
       [] -> Active.runDynamic dynamic start :| []
       t:ts -> fmap (Active.runDynamic dynamic) (t :| ts)
   where
-    spf :: Rational
-    spf = 1 / fps
-
     start :: Time Rational
     start = Active.start . Active.era $ dynamic
 

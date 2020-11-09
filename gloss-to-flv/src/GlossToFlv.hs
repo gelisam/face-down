@@ -80,5 +80,5 @@ writeFlv filePath size bg fps active = do
   where
     frames :: NonEmpty Picture
     frames
-      = Active.sampleFrames (fromIntegral fps)
+      = Active.sampleFrames (1 / fromIntegral fps)
       $ active
