@@ -34,15 +34,18 @@ readFlvFlipBook filePath = do
         error $ "readFlv " ++ show filePath ++ ": too few frames (0)"
       tf:tfs -> do
         let (timestamps, frames) = NonEmpty.unzip (tf :| tfs)
-        let initDurations = Active.timestampsToDurations timestamps
         -- ffmpeg-light only gives the start time of every frame, therefore we
         -- have no way to know how long the last frame lasts. just assume it
         -- lasts the same as the penultimate frame.
-        case initDurations ++ [last initDurations] of
-          [] -> do
+        case NonEmpty.nonEmpty
+           . Active.timestampsToDurations
+           $ timestamps of
+          Nothing -> do
             error $ "readFlv " ++ show filePath ++ ": too few frames (1)"
-          d:ds -> do
-            let durations = d :| ds
+          Just initDurations -> do
+            let durations
+                  = initDurations
+                 <> (NonEmpty.last initDurations :| [])
             pure $ NonEmpty.zip durations frames
 
 readFlv
