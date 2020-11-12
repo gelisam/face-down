@@ -24,6 +24,7 @@ tests:
       - filepath
       - gloss-active-test-support
       - gloss-to-flv
+      - lens
       - tasty
       - tasty-hunit
       - template-haskell

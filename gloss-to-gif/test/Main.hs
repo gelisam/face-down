@@ -50,6 +50,6 @@ mkTests basename size bg fps animation = do
 tests
   :: TestTree
 tests
-  = testGroup "gloss-to-gif Golden Tests"
+  = testGroup "gloss-to-gif Tests"
   [ mkTests "pulsating-circle" (300, 300) white 60 pulsatingCircle
   ]
